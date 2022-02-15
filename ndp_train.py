@@ -92,15 +92,12 @@ def get_criterion(cfg):
     return CrossEntropyLoss()
 
 
-def train_main(
-        local_rank,
-        cfg:BaseConfigByEpoch, net=None, train_dataloader=None, val_dataloader=None, show_variables=False, convbuilder=None,
-               init_hdf5=None, no_l2_keywords='depth', gradient_mask=None, use_nesterov=False, tensorflow_style_init=False,
-               load_weights_keyword=None,
-               keyword_to_lr_mult=None,
-               auto_continue=False,
-lasso_keyword_to_strength=None,
-save_hdf5_epochs=10000):
+def train_main(local_rank, cfg:BaseConfigByEpoch, net=None, train_dataloader=None,
+                   val_dataloader=None, show_variables=False, convbuilder=None,
+                   init_hdf5=None, no_l2_keywords='depth', gradient_mask=None,
+                   use_nesterov=False, tensorflow_style_init=False,load_weights_keyword=None,
+                   keyword_to_lr_mult=None,auto_continue=False,lasso_keyword_to_strength=None,
+                   save_hdf5_epochs=10000):
 
     if no_l2_keywords is None:
         no_l2_keywords = []

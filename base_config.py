@@ -3,15 +3,15 @@ from model_map import get_dataset_name_by_model_name
 import numpy as np
 
 BaseConfigByEpoch = namedtuple('BaseConfigByEpoch', ['network_type', 'dataset_name', 'dataset_subset', 'global_batch_size', 'num_node', 'device',
-                                       'weight_decay', 'weight_decay_bias', 'optimizer_type', 'momentum',
-                                       'bias_lr_factor', 'max_epochs', 'base_lr', 'lr_epoch_boundaries', 'lr_decay_factor', 'linear_final_lr', 'cosine_minimum',
-                                       'warmup_epochs', 'warmup_method', 'warmup_factor',
-                                       'ckpt_iter_period', 'tb_iter_period',
-                                       'output_dir',  'tb_dir',
-                                       'init_weights', 'save_weights',
-                                       'val_epoch_period', 'grad_accum_iters',
-                                                     'deps',
-                                                     'se_reduce_scale', 'se_layers'])
+                                        'weight_decay', 'weight_decay_bias', 'optimizer_type', 'momentum',
+                                        'bias_lr_factor', 'max_epochs', 'base_lr', 'lr_epoch_boundaries', 'lr_decay_factor', 'linear_final_lr', 'cosine_minimum',
+                                        'warmup_epochs', 'warmup_method', 'warmup_factor',
+                                        'ckpt_iter_period', 'tb_iter_period',
+                                        'output_dir',  'tb_dir',
+                                        'init_weights', 'save_weights',
+                                        'val_epoch_period', 'grad_accum_iters',
+                                        'deps',
+                                        'se_reduce_scale', 'se_layers'])
 
 
 def get_baseconfig_by_epoch(network_type, dataset_name, dataset_subset, global_batch_size, num_node,
@@ -34,15 +34,16 @@ def get_baseconfig_by_epoch(network_type, dataset_name, dataset_subset, global_b
     if deps is not None:
         deps = np.array(deps, dtype=np.int)
 
-    return BaseConfigByEpoch(network_type=network_type,dataset_name=dataset_name,dataset_subset=dataset_subset,global_batch_size=global_batch_size,num_node=num_node, device=device,
-                      weight_decay=weight_decay,weight_decay_bias=weight_decay_bias,optimizer_type=optimizer_type,momentum=momentum,bias_lr_factor=bias_lr_factor,
-                      max_epochs=max_epochs, base_lr=base_lr, lr_epoch_boundaries=lr_epoch_boundaries,lr_decay_factor=lr_decay_factor, linear_final_lr=linear_final_lr, cosine_minimum=cosine_minimum,
-                             warmup_epochs=warmup_epochs,warmup_method=warmup_method,warmup_factor=warmup_factor,
-                      ckpt_iter_period=int(ckpt_iter_period),tb_iter_period=int(tb_iter_period),
-                      output_dir=output_dir, tb_dir=tb_dir,
-                      init_weights=init_weights, save_weights=save_weights,
-                             val_epoch_period=val_epoch_period, grad_accum_iters=grad_accum_iters, deps=deps, se_reduce_scale=se_reduce_scale,
-                             se_layers=se_layers)
+    return BaseConfigByEpoch(network_type=network_type,dataset_name=dataset_name,dataset_subset=dataset_subset,
+                                 global_batch_size=global_batch_size,num_node=num_node, device=device,
+                                 weight_decay=weight_decay,weight_decay_bias=weight_decay_bias,optimizer_type=optimizer_type,momentum=momentum,bias_lr_factor=bias_lr_factor,
+                                 max_epochs=max_epochs, base_lr=base_lr, lr_epoch_boundaries=lr_epoch_boundaries,lr_decay_factor=lr_decay_factor, linear_final_lr=linear_final_lr,
+                                 cosine_minimum=cosine_minimum,warmup_epochs=warmup_epochs,warmup_method=warmup_method,warmup_factor=warmup_factor,
+                                 ckpt_iter_period=int(ckpt_iter_period),tb_iter_period=int(tb_iter_period),
+                                 output_dir=output_dir, tb_dir=tb_dir,
+                                 init_weights=init_weights, save_weights=save_weights,
+                                 val_epoch_period=val_epoch_period, grad_accum_iters=grad_accum_iters, deps=deps, se_reduce_scale=se_reduce_scale,
+                                 se_layers=se_layers)
 
 def get_baseconfig_for_test(network_type, dataset_subset, global_batch_size, init_weights=None, device='cuda', deps=None,
                             se_reduce_scale=0, se_layers=None, dataset_name=None):

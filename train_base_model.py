@@ -10,12 +10,12 @@ def train_base_model(
         local_rank,
         network_type,
         lrs,
-                weight_decay_strength,
-                batch_size,
-                deps, auto_continue,
-                init_hdf5=None,
+        weight_decay_strength,
+        batch_size,
+        deps, auto_continue,
+        init_hdf5=None,
         net=None,
-dataset_name=None):
+        dataset_name=None):
 
     log_dir = '{}_train'.format(network_type)
 

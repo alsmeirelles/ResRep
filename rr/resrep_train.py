@@ -28,6 +28,7 @@ CONVERSION_EPSILON = 1e-5
 def train_one_step(compactor_mask_dict, resrep_config:ResRepConfig,
                    net, data, label, optimizer, criterion, if_accum_grad = False,
                    gradient_mask_tensor = None):
+    
     pred = net(data)
     loss = criterion(pred, label)
     loss.backward()
@@ -88,14 +89,35 @@ def get_optimizer(cfg, resrep_config, model, no_l2_keywords, use_nesterov=False,
 def get_criterion(cfg):
     return CrossEntropyLoss()
 
-def resrep_train_main(
-        local_rank,
-        cfg:BaseConfigByEpoch, resrep_config:ResRepConfig, resrep_builder,
-        net=None, train_dataloader=None, val_dataloader=None, show_variables=False,
-               init_hdf5=None, no_l2_keywords='depth', gradient_mask=None, use_nesterov=False,
-               load_weights_keyword=None,
-               keyword_to_lr_mult=None,
-               auto_continue=False,save_hdf5_epochs=5):
+def resrep_train_main(local_rank,
+                          cfg:BaseConfigByEpoch,
+                          resrep_config:ResRepConfig,
+                          resrep_builder,
+                          net=None,
+                          train_dataloader=None,
+                          val_dataloader=None,
+                          show_variables=False,
+                          init_hdf5=None,
+                          no_l2_keywords='depth',
+                          gradient_mask=None,
+                          use_nesterov=False,
+                          load_weights_keyword=None,
+                          keyword_to_lr_mult=None,
+                          auto_continue=False,
+                          save_hdf5_epochs=5):
+
+    """
+    Parameters:
+    local_rank: <int> Don't know what this is, something to do with GPUs
+    cfg: <BaseConfigByEpoch> General configuration object
+    resrep_config: <ResRepConfig> Specific configuration object
+    resrep_builder: <ResRepBuilder> Builder object. Not needed if a net instance is given
+    net: <Pytorch Module> Instance of a module object 
+    train_dataloader <Some sort of DataIterator> Some object that can answer to a next() call
+    val_dataloader <Some sort of DataIterator> Some object that can answer to a next() call
+    show_variable <boolean> Shows model parameters
+    init_hdf5 <String> Path to hdf5 weight files for preloading
+    """
 
     if no_l2_keywords is None:
         no_l2_keywords = []
@@ -105,8 +127,7 @@ def resrep_train_main(
     ensure_dir(cfg.output_dir)
     ensure_dir(cfg.tb_dir)
     with Engine(local_rank=local_rank) as engine:
-        engine.setup_log(
-            name='train', log_dir=cfg.output_dir, file_name='log.txt')
+        engine.setup_log(name='train', log_dir=cfg.output_dir, file_name='log.txt')
 
         # ----------------------------- build model ------------------------------
         if net is None:
@@ -245,7 +266,7 @@ def resrep_train_main(
                 start_time = time.time()
                 data, label = load_cuda_data(train_data, dataset_name=cfg.dataset_name)
 
-                    # load_cuda_data(train_dataloader, cfg.dataset_name)
+                # load_cuda_data(train_dataloader, cfg.dataset_name)
                 data_time = time.time() - start_time
 
                 if_accum_grad = ((iteration % cfg.grad_accum_iters) != 0)

@@ -341,9 +341,6 @@ class Engine(object):
         self.echo(msg)
 
 
-
-
-
     def log(self, msg):
         if self.local_rank == 0:
             print(msg)

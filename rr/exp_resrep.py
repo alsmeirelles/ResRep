@@ -88,7 +88,7 @@ if __name__ == '__main__':
         no_l2_keywords = ['depth', 'compactor']
         
     print('######################################################')
-    print('start ere, the original flops is ', flops_func(deps))
+    print('start here, the original flops is ', flops_func(deps))
     print('######################################################')
 
     if not os.path.exists(os.path.join(config.output_dir,  'finish_converted.hdf5')):
