@@ -20,6 +20,7 @@ from types import SimpleNamespace
 #Locals
 from utils import alsm_utils as alu
 from utils import engine
+from utils import training_utils as tu
 
 #Filter warnings
 import warnings
@@ -280,7 +281,7 @@ def main_exec(config):
             # update the learning rate
             lr_scheduler.step()
             # evaluate on the test dataset
-            alu.evaluate(model, data_loader_test, device=device)
+            alu.evaluate(model, criterion, data_loader_test, device=device)
 
     elif config.predict:
         pass
@@ -359,6 +360,9 @@ if __name__ == "__main__":
 
     if not config.tdim is None:
         config.tdim = tuple(config.tdim)
+
+    if config.gpu_count > 0:
+        tu.init_distributed_mode(config)
         
     main_exec(config)
     
