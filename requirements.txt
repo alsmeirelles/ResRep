@@ -1,0 +1,15 @@
+cached-property  >=  1.5.2
+coloredlogs >= 15.0.1
+h5py >= 3.6.0
+imageio >= 2.15.0
+imgaug >= 0.4.0
+numpy >= 1.21.5
+pretrainedmodels >= 0.7.4
+python-utils >= 3.1.0
+PyWavelets >= 1.2.0
+scikit-image >= 0.19.1
+scipy >= 1.7.3
+tensorboard >= 1.11.0
+torch == 1.10.2
+torchvision  == 0.11.3
+tqdm >= 4.62.3
