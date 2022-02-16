@@ -264,8 +264,10 @@ def main_exec(config):
         model.to(device)        
 
         params = [p for p in model.parameters() if p.requires_grad]
-        optimizer = torch.optim.SGD(params, lr=config.learn_r,
-                                    momentum=0.9, weight_decay=0.0005)
+        #optimizer = torch.optim.SGD(params, lr=config.learn_r,
+        #                            momentum=0.9, weight_decay=0.0005)
+        optimizer = torch.optim.Adam(params,lr=config.learn_r,weight_decay=0.0005)
+
         # and a learning rate scheduler
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                     step_size=3,
@@ -336,6 +338,8 @@ if __name__ == "__main__":
         help='Number of GPUs available (Default: 0).', default=0)
     hd_args.add_argument('-cpu', dest='cpu_count', type=int, 
         help='Number of CPU cores available (Default: 1).', default=1)
+    hd_args.add_argument("--dist-url", default="env://", type=str, help="url used to set up distributed training")
+    hd_args.add_argument("--world-size", default=1, type=int, help="number of distributed processes")
 
     ##Runtime options
     parser.add_argument('-out', dest='temp', type=str,default='temp', 
@@ -361,8 +365,8 @@ if __name__ == "__main__":
     if not config.tdim is None:
         config.tdim = tuple(config.tdim)
 
-    if config.gpu_count > 0:
-        tu.init_distributed_mode(config)
+    #if config.gpu_count > 0:
+    #    tu.init_distributed_mode(config)
         
     main_exec(config)
     

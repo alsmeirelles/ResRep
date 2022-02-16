@@ -282,7 +282,10 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
 
     metric_logger.synchronize_between_processes()
 
-    print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
+    if not acc5 is None:
+        print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
+    else:
+        print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f}")
     return metric_logger.acc1.global_avg
 
 
