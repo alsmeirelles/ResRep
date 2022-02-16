@@ -40,7 +40,7 @@ class SmoothedValue:
         """
         Warning: does not synchronize the deque!
         """
-        t = reduce_across_processes([self.count, self.total])
+        t = utils.reduce_across_processes([self.count, self.total])
         t = t.tolist()
         self.count = int(t[0])
         self.total = t[1]
@@ -72,16 +72,6 @@ class SmoothedValue:
             median=self.median, avg=self.avg, global_avg=self.global_avg, max=self.max, value=self.value
         )
 
-
-def reduce_across_processes(val):
-    if not is_dist_avail_and_initialized():
-        # nothing to sync, but we still convert to tensor for consistency with the distributed case.
-        return torch.tensor(val)
-
-    t = torch.tensor(val, device="cuda")
-    dist.barrier()
-    dist.all_reduce(t)
-    return t
 
 class MetricLogger:
     def __init__(self, delimiter="\t"):
