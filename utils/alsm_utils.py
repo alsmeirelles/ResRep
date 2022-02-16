@@ -250,13 +250,19 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
             output = model(image)
             loss = criterion(output, target)
 
-            acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+            if output.shape[1] > 5:
+                acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+            else:
+                acc1, = utils.accuracy(output, target, topk=(1,))
+                acc5 = None
+                
             # FIXME need to take into account that the datasets
             # could have been padded in distributed setup
             batch_size = image.shape[0]
             metric_logger.update(loss=loss.item())
             metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
-            metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+            if not acc5 is None:
+                metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
             num_processed_samples += batch_size
     # gather the stats from all processes
 
