@@ -279,7 +279,7 @@ def main_exec(config):
 
         run_engine = engine.Engine(local_rank=config.lrank)
         run_engine.setup_log(name='train', log_dir=config.temp, file_name='log.txt')
-        run_engine.register_state(lr_scheduler=scheduler, model=model, optimizer=optimizer)
+        run_engine.register_state(scheduler=lr_scheduler, model=model, optimizer=optimizer)
         run_engine.show_variables()
         for epoch in range(config.epochs):
             # train for one epoch, printing every 10 iterations
