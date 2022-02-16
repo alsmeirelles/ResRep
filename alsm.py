@@ -120,9 +120,15 @@ class PImage(object):
         return self._label
     
 class TILDataset(torch.utils.data.Dataset):
+    """
+    Dataset specific parameters
+    """
     pf_form = '(UN-(?P<unc>[0-9])+-){,1}(?P<tcga>TCGA-.*-.*-.*-.*-.*)-(?P<x>[0-9]+)-(?P<y>[0-9]+)-(?P<s1>[0-9]+)-(?P<s2>[0-9]+)(_(?P<lb>[01])){,1}\\.png'
     num_classes = 2
     name = 'TILDataset'
+    input_space = 'RGB'
+    input_range = [0,1]
+    
     def __init__(self,path,augment=False,keep=False,imsize=None,proc=2,cache='cache'):
         """
         TIL Dataset data generator
@@ -259,7 +265,10 @@ def main_exec(config):
 
         # get the model using our helper function
         model = getattr(pretrainedmodels,config.network)(num_classes=dataset.num_classes,pretrained=None)
-
+        model.input_size = config.tdim
+        model.input_space = dataset.input_space
+        model.input_range = dataset.input_range
+        
         # move model to the right device
         model.to(device)        
 
@@ -281,6 +290,7 @@ def main_exec(config):
         run_engine.setup_log(name='train', log_dir=config.temp, file_name='log.txt')
         run_engine.register_state(scheduler=lr_scheduler, model=model, optimizer=optimizer)
         run_engine.show_variables()
+        
         for epoch in range(config.epochs):
             # train for one epoch, printing every 10 iterations
             alu.train_one_epoch(model, criterion, optimizer, data_loader, device, epoch,args=other_args)
@@ -371,7 +381,7 @@ if __name__ == "__main__":
         os.mkdir(config.temp)
 
     if not config.tdim is None:
-        config.tdim = tuple(config.tdim)
+        config.tdim = (3,) + tuple(config.tdim)
 
     #if config.gpu_count > 0:
     #    tu.init_distributed_mode(config)
