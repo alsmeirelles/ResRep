@@ -276,14 +276,19 @@ def main_exec(config):
 
         other_args = {'print_freq':10, 'clip_grad_norm':None, 'lr_warmup_epochs':0, 'model_ema_steps':32}
         other_args = SimpleNamespace(**other_args)
-        
+
+        run_engine = engine.Engine(local_rank=config.lrank)
+        run_engine.setup_log(name='train', log_dir=config.temp, file_name='log.txt')
+        run_engine.register_state(lr_scheduler=scheduler, model=model, optimizer=optimizer)
+        run_engine.show_variables()
         for epoch in range(config.epochs):
             # train for one epoch, printing every 10 iterations
             alu.train_one_epoch(model, criterion, optimizer, data_loader, device, epoch,args=other_args)
             # update the learning rate
             lr_scheduler.step()
             # evaluate on the test dataset
-            alu.evaluate(model, criterion, data_loader_test, device=device)
+            if epoch > 0 and epoch % config.eval_freq == 0:
+                alu.evaluate(model, criterion, data_loader_test, device=device)
 
     elif config.predict:
         pass
@@ -329,6 +334,8 @@ if __name__ == "__main__":
     pred_args.add_argument('-test',dest='test',type=str,help='Test set path',default=None)
     pred_args.add_argument('-tsize', dest='tsize', type=int, 
         help='Size of test set', default=None)
+    pred_args.add_argument('-eval', dest='eval_freq', type=int, 
+        help='Run evaluation on test set every -eval epochs (Default: 5).', default=5)
     
     ##Hardware configurations
     hd_args = parser.add_argument_group('Hardware')
@@ -338,8 +345,9 @@ if __name__ == "__main__":
         help='Number of GPUs available (Default: 0).', default=0)
     hd_args.add_argument('-cpu', dest='cpu_count', type=int, 
         help='Number of CPU cores available (Default: 1).', default=1)
-    hd_args.add_argument("--dist-url", default="env://", type=str, help="url used to set up distributed training")
-    hd_args.add_argument("--world-size", default=1, type=int, help="number of distributed processes")
+    hd_args.add_argument('-dist-url', default="env://", type=str, help="URL used to set up distributed training")
+    hd_args.add_argument('-world-size', default=1, type=int, help="Number of distributed processes")
+    hd_args.add_argument('-lrank', dest='lrank', default=0, type=int, help="Local rank on node.")
 
     ##Runtime options
     parser.add_argument('-out', dest='temp', type=str,default='temp', 
