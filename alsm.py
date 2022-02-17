@@ -300,6 +300,8 @@ def main_exec(config):
             if epoch > 0 and epoch % config.eval_freq == 0:
                 alu.evaluate(model, criterion, data_loader_test, device=device)
 
+        engine.save_hdf5(os.path.join(config.weights_path, '{}-finish.hdf5'.format(config.network)))
+
     elif config.predict:
         pass
         
