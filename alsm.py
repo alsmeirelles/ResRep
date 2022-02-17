@@ -265,7 +265,7 @@ def main_exec(config):
 
         # get the model using our helper function
         model = getattr(pretrainedmodels,config.network)(num_classes=dataset.num_classes,pretrained=None)
-        model.input_size = config.tdim
+        model.input_size = (3,) + config.tdim
         model.input_space = dataset.input_space
         model.input_range = dataset.input_range
         
@@ -381,7 +381,7 @@ if __name__ == "__main__":
         os.mkdir(config.temp)
 
     if not config.tdim is None:
-        config.tdim = (3,) + tuple(config.tdim)
+        config.tdim = tuple(config.tdim)
 
     #if config.gpu_count > 0:
     #    tu.init_distributed_mode(config)
