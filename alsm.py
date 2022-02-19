@@ -9,7 +9,7 @@ import numpy as np
 import pickle
 import torch
 import re
-import pretrainedmodels
+import base_model
 import multiprocessing
 import imgaug as ia
 from imgaug import augmenters as iaa
@@ -243,31 +243,58 @@ def main_exec(config):
     if not os.path.isdir(config.weights_path):
         os.mkdir(config.weights_path)
 
-    if config.train:
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    ## Common definitions
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-        # use our dataset and defined transformations
-        dataset = TILDataset(config.data, augment=config.augment,keep=config.keepimg,imsize=config.tdim,proc=config.cpu_count,cache=config.cache)
-        if not config.test is None:
-            dataset_test = TILDataset(config.test, augment=False,keep=False,imsize=config.tdim,proc=config.cpu_count,cache=config.cache)
-        elif not config.split is None:
-            # split the dataset in train and test set
-            indices = torch.randperm(len(dataset)).tolist()
-            dataset = torch.utils.data.Subset(dataset, indices[:-config.tsize])
-            dataset_test = torch.utils.data.Subset(dataset_test, indices[-config.tsize:])
+    # use our dataset and defined transformations
+    dataset = TILDataset(config.data, augment=config.augment,keep=config.keepimg,imsize=config.tdim,proc=config.cpu_count,cache=config.cache)
+    if not config.test is None:
+        dataset_test = TILDataset(config.test, augment=False,keep=False,imsize=config.tdim,proc=config.cpu_count,cache=config.cache)
+    elif not config.split is None:
+        # split the dataset in train and test set
+        indices = torch.randperm(len(dataset)).tolist()
+        dataset = torch.utils.data.Subset(dataset, indices[:-config.tsize])
+        dataset_test = torch.utils.data.Subset(dataset_test, indices[-config.tsize:])
 
-        # define training and validation data loaders
-        data_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.cpu_count,pin_memory=config.keepimg)
+    # define training and validation data loaders
+    data_loader = torch.utils.data.DataLoader(
+        dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.cpu_count,pin_memory=config.keepimg)
 
-        data_loader_test = torch.utils.data.DataLoader(
-            dataset_test, batch_size=1, shuffle=False, num_workers=config.cpu_count)
+    data_loader_test = torch.utils.data.DataLoader(
+        dataset_test, batch_size=1, shuffle=False, num_workers=config.cpu_count)    
 
-        # get the model using our helper function
-        model = getattr(pretrainedmodels,config.network)(num_classes=dataset.num_classes,pretrained=None)
-        model.input_size = (3,) + config.tdim
-        model.input_space = dataset.input_space
-        model.input_range = dataset.input_range
+    # get the model using our helper function
+    model = getattr(base_model,config.network)(num_classes=dataset.num_classes,pretrained=None)
+    model.input_size = (3,) + config.tdim
+    model.input_space = dataset.input_space
+    model.input_range = dataset.input_range
+    
+    ## Main execution sequence
+    if config.rrtrain:
+        from ndp_train import train_main
+        from base_config import BaseConfigByEpoch
+        from constants import LRSchedule
+
+        lrs = LRSchedule(base_lr=0.1, max_epochs=240, lr_epoch_boundaries=[120, 180], lr_decay_factor=0.1,
+                         linear_final_lr=None, cosine_minimum=None)
+
+        bcfg = BaseConfigByEpoch(network_type=config.network, dataset_name='TILDataset',
+                                     dataset_subset='train',
+                                     global_batch_size=config.batch_size, num_node=1,
+                                     weight_decay=1e-4, optimizer_type='AdamW', momentum=0.9,
+                                     max_epochs=lrs.max_epochs, base_lr=lrs.base_lr, lr_epoch_boundaries=lrs.lr_epoch_boundaries,
+                                     lr_decay_factor=lrs.lr_decay_factor, cosine_minimum=lrs.cosine_minimum,
+                                     warmup_epochs=0, warmup_method='linear', warmup_factor=warmup_factor,
+                                     ckpt_iter_period=40000, tb_iter_period=100, output_dir=log_dir,
+                                     tb_dir=log_dir, save_weights=None, val_epoch_period=0, linear_final_lr=lrs.linear_final_lr,
+                                     weight_decay_bias=weight_decay_bias, deps=deps)
+        
+        # move model to the right device
+        model.to(device)
+
+        train_main(local_rank=0,cfg=bcfg,net=model,train_dataloader=dataset,val_dataloader=None,init_hdf5=None)
+
+    elif config.train:
         
         # move model to the right device
         model.to(device)        
@@ -300,7 +327,7 @@ def main_exec(config):
             if epoch > 0 and epoch % config.eval_freq == 0:
                 alu.evaluate(model, criterion, data_loader_test, device=device)
 
-        engine.save_hdf5(os.path.join(config.weights_path, '{}-finish.hdf5'.format(config.network)))
+        run_engine.save_hdf5(os.path.join(config.weights_path, '{}-finish.hdf5'.format(config.network)))
 
     elif config.predict:
         pass
@@ -316,6 +343,9 @@ if __name__ == "__main__":
     train_args = parser.add_argument_group('Training','Common network training options')
     arg_groups.append(train_args)
 
+    train_args.add_argument('--rrtrain', action='store_true', dest='rrtrain', default=False, 
+        help='Train model with ResRep system')
+    
     train_args.add_argument('--train', action='store_true', dest='train', default=False, 
         help='Train model')
     train_args.add_argument('-net',dest='network',type=str,default='inceptionv4',help='Network name which should be trained.\n \
