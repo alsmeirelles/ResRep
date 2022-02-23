@@ -130,6 +130,7 @@ def resrep_train_main(local_rank,
         engine.setup_log(name='train', log_dir=cfg.output_dir, file_name='log.txt')
 
         # ----------------------------- build model ------------------------------
+        # ALSM: No specific RR model modifications so far
         if net is None:
             net_fn = get_model_fn(cfg.dataset_name, cfg.network_type)
             model = net_fn(cfg, resrep_builder)

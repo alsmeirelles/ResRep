@@ -65,7 +65,7 @@ def val_during_train(epoch, iteration, tb_tags,
                       engine, model, val_data, criterion, descrip_str,
                       dataset_name, test_batch_size, tb_writer):
     model.eval()
-    num_examples = num_val_examples(dataset_name)
+    num_examples = len(val_data) #num_val_examples(dataset_name)
     assert num_examples % test_batch_size == 0
     val_iters = num_examples // test_batch_size
     eval_dict, total_net_time = run_eval(val_data, val_iters, model, criterion, descrip_str,

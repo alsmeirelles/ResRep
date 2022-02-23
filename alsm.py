@@ -243,9 +243,6 @@ def main_exec(config):
     if not os.path.isdir(config.weights_path):
         os.mkdir(config.weights_path)
 
-    ## Common definitions
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
     # use our dataset and defined transformations
     dataset = TILDataset(config.data, augment=config.augment,keep=config.keepimg,imsize=config.tdim,proc=config.cpu_count,cache=config.cache)
     if not config.test is None:
@@ -262,53 +259,97 @@ def main_exec(config):
 
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test, batch_size=1, shuffle=False, num_workers=config.cpu_count)    
-
-    # get the model using our helper function
-    model = getattr(base_model,config.network)(num_classes=dataset.num_classes,pretrained=None)
-    model.input_size = (3,) + config.tdim
-    model.input_space = dataset.input_space
-    model.input_range = dataset.input_range
     
     ## Main execution sequence
     if config.rrtrain:
         from ndp_train import train_main
         from base_config import BaseConfigByEpoch
         from constants import LRSchedule
+        from builder import ConvBuilder
 
-        lrs = LRSchedule(base_lr=0.1, max_epochs=240, lr_epoch_boundaries=[120, 180], lr_decay_factor=0.1,
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
+        lrs = LRSchedule(base_lr=0.1, max_epochs=config.epochs, lr_epoch_boundaries=[120, 180], lr_decay_factor=0.1,
                          linear_final_lr=None, cosine_minimum=None)
-
+        
         bcfg = BaseConfigByEpoch(network_type=config.network, dataset_name='TILDataset',
                                      dataset_subset='train',
-                                     global_batch_size=config.batch_size, num_node=1,
-                                     weight_decay=1e-4, optimizer_type='AdamW', momentum=0.9,
-                                     max_epochs=lrs.max_epochs, base_lr=lrs.base_lr, lr_epoch_boundaries=lrs.lr_epoch_boundaries,
-                                     lr_decay_factor=lrs.lr_decay_factor, cosine_minimum=lrs.cosine_minimum,
-                                     warmup_epochs=0, warmup_method='linear', warmup_factor=warmup_factor,
-                                     ckpt_iter_period=40000, tb_iter_period=100, output_dir=log_dir,
-                                     tb_dir=log_dir, save_weights=None, val_epoch_period=0, linear_final_lr=lrs.linear_final_lr,
-                                     weight_decay_bias=weight_decay_bias, deps=deps)
+                                     global_batch_size=config.batch_size,
+                                     device=device,
+                                     num_node=1,
+                                     weight_decay=1e-4,
+                                     optimizer_type='AdamW',
+                                     momentum=0.9,
+                                     max_epochs=lrs.max_epochs,
+                                     base_lr=lrs.base_lr,
+                                     lr_epoch_boundaries=lrs.lr_epoch_boundaries,
+                                     lr_decay_factor=lrs.lr_decay_factor,
+                                     bias_lr_factor=2,
+                                     cosine_minimum=lrs.cosine_minimum,
+                                     warmup_epochs=0,
+                                     warmup_method='linear',
+                                     warmup_factor=0,
+                                     ckpt_iter_period=40000,
+                                     tb_iter_period=100,
+                                     output_dir=config.temp,
+                                     tb_dir=config.temp,
+                                     save_weights=None,
+                                     init_weights=None, #Initial weights as checkpoint continuation
+                                     val_epoch_period=0,
+                                     linear_final_lr=lrs.linear_final_lr,
+                                     weight_decay_bias=0,
+                                     grad_accum_iters=1,
+                                     se_reduce_scale=0,
+                                     se_layers=None,
+                                     deps=None)
+
+        convbuilder = ConvBuilder(base_config=bcfg)
+        model = getattr(base_model,config.network)(bcfg, convbuilder, num_classes = dataset.num_classes)
+        model.input_size = (3,) + config.tdim
+        model.input_space = dataset.input_space
+        model.input_range = dataset.input_range
+        
+        params = [p for p in model.parameters() if p.requires_grad]
+        #optimizer = torch.optim.SGD(params, lr=config.learn_r,
+        #                            momentum=0.9, weight_decay=0.0005)
+        optimizer = torch.optim.Adam(params,lr=config.learn_r,weight_decay=0.0005)
+    
+        # and a learning rate scheduler
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                                        step_size=5,
+                                                        gamma=0.1)
+        criterion = torch.nn.CrossEntropyLoss()
         
         # move model to the right device
+        device = torch.device(device)
         model.to(device)
-
-        train_main(local_rank=0,cfg=bcfg,net=model,train_dataloader=dataset,val_dataloader=None,init_hdf5=None)
+        train_conf = (optimizer,lr_scheduler,criterion)
+        train_main(local_rank=0,cfg=bcfg,net=model,train_dataloader=data_loader,
+                       val_dataloader=None,init_hdf5=None,train_conf=train_conf,show_variables=True)
 
     elif config.train:
+        ## Common definitions
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         
-        # move model to the right device
-        model.to(device)        
+        # get the model using our helper function
+        model = getattr(base_model,config.network)(num_classes=dataset.num_classes,pretrained=None)
+        model.input_size = (3,) + config.tdim
+        model.input_space = dataset.input_space
+        model.input_range = dataset.input_range
 
         params = [p for p in model.parameters() if p.requires_grad]
         #optimizer = torch.optim.SGD(params, lr=config.learn_r,
         #                            momentum=0.9, weight_decay=0.0005)
         optimizer = torch.optim.Adam(params,lr=config.learn_r,weight_decay=0.0005)
-
+    
         # and a learning rate scheduler
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                                    step_size=3,
-                                                    gamma=0.1)
-        criterion = torch.nn.CrossEntropyLoss()
+                                                        step_size=5,
+                                                        gamma=0.1)
+        criterion = torch.nn.CrossEntropyLoss()        
+        
+        # move model to the right device
+        model.to(device)        
 
         other_args = {'print_freq':10, 'clip_grad_norm':None, 'lr_warmup_epochs':0, 'model_ema_steps':32}
         other_args = SimpleNamespace(**other_args)

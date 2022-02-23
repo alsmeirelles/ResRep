@@ -47,10 +47,10 @@ class ConvBuilder(nn.Module):
     def ReLU(self):
         return nn.ReLU()
 
-    def Conv2dBN(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', use_original_conv=False):
+    def Conv2dBN(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', use_original_conv=False,bias=True):
         conv_layer = self.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
                          stride=stride, padding=padding, dilation=dilation, groups=groups,
-                                 bias=False, padding_mode=padding_mode, use_original_conv=use_original_conv)
+                                 bias=bias, padding_mode=padding_mode, use_original_conv=use_original_conv)
         bn_layer = self.BatchNorm2d(num_features=out_channels)
         se = self.Sequential()
         se.add_module('conv', conv_layer)
@@ -62,15 +62,15 @@ class ConvBuilder(nn.Module):
         return se
 
 
-    def Conv2dBNReLU(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', use_original_conv=False):
+    def Conv2dBNReLU(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', use_original_conv=False,bias=True):
         conv = self.Conv2dBN(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride,
-                                 padding=padding, dilation=dilation, groups=groups, padding_mode=padding_mode, use_original_conv=use_original_conv)
+                                 padding=padding, dilation=dilation, groups=groups, padding_mode=padding_mode, use_original_conv=use_original_conv,bias=bias)
         conv.add_module('relu', self.ReLU())
         return conv
 
-    def ReLUConv2dBN(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', use_original_conv=False):
+    def ReLUConv2dBN(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', use_original_conv=False,bias=True):
         conv_layer = self.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
-                         stride=stride, padding=padding, dilation=dilation, groups=groups, bias=False, padding_mode=padding_mode, use_original_conv=use_original_conv)
+                         stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias, padding_mode=padding_mode, use_original_conv=use_original_conv)
         bn_layer = self.BatchNorm2d(num_features=out_channels)
         se = self.Sequential()
         se.add_module('relu', self.ReLU())
@@ -86,10 +86,10 @@ class ConvBuilder(nn.Module):
         result.add_module('relu', self.ReLU())
         return conv
 
-    def BNReLUConv2d(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', use_original_conv=False):
+    def BNReLUConv2d(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', use_original_conv=False,bias=True):
         bn_layer = self.BatchNorm2d(num_features=in_channels)
         conv_layer = self.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
-                         stride=stride, padding=padding, dilation=dilation, groups=groups, bias=False, padding_mode=padding_mode)
+                         stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias, padding_mode=padding_mode)
         se = self.Sequential()
         se.add_module('bn', bn_layer)
         se.add_module('relu', self.ReLU())
@@ -149,21 +149,21 @@ class ConvBuilder(nn.Module):
         return nn.GroupNorm(num_groups=8, num_channels=num_features, affine=affine)
 
     def Conv2dGroupNorm(self, in_channels, out_channels, kernel_size, stride=1, padding=0,
-                        dilation=1, groups=1, padding_mode='zeros', use_original_conv=True):
+                        dilation=1, groups=1, padding_mode='zeros', use_original_conv=True,bias=True):
         assert use_original_conv
         conv_layer = self.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
                          stride=stride, padding=padding, dilation=dilation, groups=groups,
-                                 bias=False, padding_mode=padding_mode)
+                                 bias=bias, padding_mode=padding_mode)
         gn_layer = self.GroupNorm(out_channels)
         se = self.Sequential()
         se.add_module('conv', conv_layer)
         se.add_module('bn', gn_layer)
         return se
 
-    def OriginConv2dBN(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros'):
+    def OriginConv2dBN(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros',bias=True):
         conv_layer = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
                          stride=stride, padding=padding, dilation=dilation, groups=groups,
-                                 bias=False, padding_mode=padding_mode)
+                                 bias=bias, padding_mode=padding_mode)
         bn_layer = self.BatchNorm2d(num_features=out_channels)
         se = self.Sequential()
         se.add_module('conv', conv_layer)

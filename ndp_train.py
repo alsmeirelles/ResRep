@@ -50,7 +50,12 @@ def train_one_step(net, data, label, optimizer, criterion,
                     param.grad = param.grad * gradient_mask_tensor[name]
         optimizer.step()
         optimizer.zero_grad()
-    acc, acc5 = torch_accuracy(pred, label, (1,5))
+
+    if net.num_classes > 5:
+        acc, acc5 = torch_accuracy(pred, label, (1,5))
+    else:
+        acc, = torch_accuracy(pred, label, (1,))
+        acc5 = None
     return acc, acc5, loss
 
 
@@ -108,6 +113,7 @@ def train_main(local_rank,
                    keyword_to_lr_mult=None,
                    auto_continue=False,
                    lasso_keyword_to_strength=None,
+                   train_conf=None,
                    save_hdf5_epochs=10000):
 
     if no_l2_keywords is None:
@@ -129,25 +135,41 @@ def train_main(local_rank,
             model = net_fn(cfg, convbuilder)
         else:
             model = net
-        model = model.cuda()
+        if cfg.device == 'cuda': 
+            model = model.cuda()
         # ----------------------------- model done ------------------------------
 
         # ---------------------------- prepare data -------------------------
         if train_dataloader is None:
             train_data = create_dataset(cfg.dataset_name, cfg.dataset_subset,
                                         cfg.global_batch_size, distributed=engine.distributed)
+        else:
+            train_data = train_dataloader
+            
         if cfg.val_epoch_period > 0 and val_dataloader is None:
             val_data = create_dataset(cfg.dataset_name, 'val',
                                       global_batch_size=100, distributed=False)
+        elif not val_dataloader is None:
+            val_data = val_dataloader
+        else:
+            val_data = None
+            
         engine.echo('NOTE: Data prepared')
         engine.echo('NOTE: We have global_batch_size={} on {} GPUs, the allocated GPU memory is {}'.format(cfg.global_batch_size, torch.cuda.device_count(), torch.cuda.memory_allocated()))
         # ----------------------------- data done --------------------------------
 
         # ------------------------ parepare optimizer, scheduler, criterion -------
-        optimizer = get_optimizer(engine, cfg, model,
-                                  no_l2_keywords=no_l2_keywords, use_nesterov=use_nesterov, keyword_to_lr_mult=keyword_to_lr_mult)
-        scheduler = get_lr_scheduler(cfg, optimizer)
-        criterion = get_criterion(cfg).cuda()
+        if not train_conf is None:
+            optimizer,scheduler,criterion = train_conf
+
+        if optimizer is None:
+            optimizer = get_optimizer(engine, cfg, model,
+                                    no_l2_keywords=no_l2_keywords, use_nesterov=use_nesterov, keyword_to_lr_mult=keyword_to_lr_mult)
+        if scheduler is None:
+            scheduler = get_lr_scheduler(cfg, optimizer)
+
+        if criterion is None:
+            criterion = get_criterion(cfg).cuda()
         # --------------------------------- done -------------------------------
 
         engine.register_state(
@@ -159,7 +181,7 @@ def train_main(local_rank,
             model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[local_rank],
                 broadcast_buffers=False, )
-        else:
+        elif cfg.device == 'cuda':
             assert torch.cuda.device_count() == 1
             engine.echo('Single GPU training')
 
@@ -179,7 +201,7 @@ def train_main(local_rank,
         engine.log("\n\nStart training with pytorch version {}".format(torch.__version__))
 
         iteration = engine.state.iteration
-        iters_per_epoch = num_iters_per_epoch(cfg)
+        iters_per_epoch = len(train_data)
         max_iters = iters_per_epoch * cfg.max_epochs
         tb_writer = SummaryWriter(cfg.tb_dir)
         tb_tags = ['Top1-Acc', 'Top5-Acc', 'Loss']
@@ -215,7 +237,7 @@ def train_main(local_rank,
             else:
                 pbar = tqdm(range(iters_per_epoch))
 
-            if epoch == 0 and local_rank == 0:
+            if epoch == 0 and local_rank == 0 and not val_data is None:
                 val_during_train(epoch=epoch, iteration=iteration, tb_tags=tb_tags, engine=engine, model=model,
                                  val_data=val_data, criterion=criterion, descrip_str='Init',
                                  dataset_name=cfg.dataset_name, test_batch_size=TEST_BATCH_SIZE,
@@ -228,12 +250,15 @@ def train_main(local_rank,
             discrip_str = 'Epoch-{}/{}'.format(epoch, cfg.max_epochs)
             pbar.set_description('Train' + discrip_str)
 
-            for _ in pbar:
+            for i,(data,label) in enumerate(train_data):
 
+                if cfg.device == 'cuda':
+                    data.cuda()
+                    label.cuda()
+                    
                 start_time = time.time()
-                data, label = load_cuda_data(train_data, dataset_name=cfg.dataset_name)
+                #data, label = load_cuda_data(train_data, dataset_name=cfg.dataset_name)
 
-                    # load_cuda_data(train_dataloader, cfg.dataset_name)
                 data_time = time.time() - start_time
 
                 if_accum_grad = ((iteration % cfg.grad_accum_iters) != 0)
@@ -259,7 +284,8 @@ def train_main(local_rank,
                         tb_writer.add_scalars(tag, {'Train': value}, iteration)
 
                 top1.update(acc.item())
-                top5.update(acc5.item())
+                if not acc5 is None:
+                    top5.update(acc5.item())
                 losses.update(loss.item())
 
                 if epoch >= cfg.max_epochs - COLLECT_TRAIN_LOSS_EPOCHS:
@@ -271,10 +297,12 @@ def train_main(local_rank,
                 pbar_dic['cur_iter'] = iteration
                 pbar_dic['lr'] = scheduler.get_lr()[0]
                 pbar_dic['top1'] = '{:.5f}'.format(top1.mean)
-                pbar_dic['top5'] = '{:.5f}'.format(top5.mean)
+                if not acc5 is None:
+                    pbar_dic['top5'] = '{:.5f}'.format(top5.mean)
                 pbar_dic['loss'] = '{:.5f}'.format(losses.mean)
                 pbar.set_postfix(pbar_dic)
-
+                
+                pbar.update(1)
                 iteration += 1
 
                 if iteration >= max_iters or iteration % cfg.ckpt_iter_period == 0:
