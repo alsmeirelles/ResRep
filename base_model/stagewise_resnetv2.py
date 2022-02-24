@@ -136,3 +136,8 @@ def swresnet101v2(cfg, builder, num_classes = 1000,pretrained=None):
 
 def swresnet152v2(cfg, builder, num_classes = 1000,pretrained=None):
     return SBottleneckResNet(builder, [3,8,36,3], num_classes=num_classes, deps=cfg.deps)
+
+def swresnet50v2_phi2(cfg, builder, num_classes = 1000,pretrained=None):
+    deps = [53,212,53,53,212,53,53,212,106,106,424,106,106,424,106,106,424, 848,
+                                    212, 212, 848,212,212,848,212, 212, 848, 212, 212, 848, 1692, 1692, 423, 423, 1692,423, 423, 1692]
+    return SBottleneckResNet(builder, [2,3,4,2], num_classes=num_classes, deps=deps)
