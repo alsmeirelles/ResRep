@@ -253,8 +253,12 @@ def train_main(local_rank,
             for i,(data,label) in enumerate(train_data):
 
                 if cfg.device == 'cuda':
-                    data.cuda()
-                    label.cuda()
+                #    data.cuda()
+                #    label.cuda()
+                    dev = torch.device(cfg.device)
+                    data = data.to(dev)
+                    label = label.to(dev)
+
                     
                 start_time = time.time()
                 #data, label = load_cuda_data(train_data, dataset_name=cfg.dataset_name)
@@ -272,8 +276,6 @@ def train_main(local_rank,
                 if iteration > TRAIN_SPEED_START * max_iters and iteration < TRAIN_SPEED_END * max_iters:
                     recorded_train_examples += cfg.global_batch_size
                     recorded_train_time += train_net_time_end - train_net_time_start
-
-                scheduler.step()
 
                 for module in model.modules():
                     if hasattr(module, 'set_cur_iter'):
@@ -314,6 +316,7 @@ def train_main(local_rank,
                     break
 
             #   do something after an epoch?
+            scheduler.step()
             engine.update_iteration(iteration)
             engine.save_latest_ckpt(cfg.output_dir)
 

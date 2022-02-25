@@ -312,12 +312,12 @@ def main_exec(config):
         params = [p for p in model.parameters() if p.requires_grad]
         #optimizer = torch.optim.SGD(params, lr=config.learn_r,
         #                            momentum=0.9, weight_decay=0.0005)
-        optimizer = torch.optim.Adam(params,lr=config.learn_r,weight_decay=0.0005)
+        optimizer = torch.optim.Adam(params,lr=config.learn_r,weight_decay=0.0)
     
         # and a learning rate scheduler
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                         step_size=5,
-                                                        gamma=0.1)
+                                                        gamma=0.5)
         criterion = torch.nn.CrossEntropyLoss()
         
         # move model to the right device
