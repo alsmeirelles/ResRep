@@ -234,6 +234,20 @@ class TILDataset(torch.utils.data.Dataset):
 
         return rt
 
+    def get_subset(self,indices,replace=False):
+        ss = object.__new__(TILDataset)
+        arr = np.asarray(self._data)
+        setattr(ss,'_path',self._path)
+        setattr(ss,'_data',list(arr[indices]))
+        setattr(ss,'_imsize',self._imsize)
+        setattr(ss,'_augmenter',self._augmenter)
+        setattr(ss,'_keep',self._keep)
+        
+        if replace:
+            self._data = list(np.delete(arr,indices))
+
+        return ss
+
 def main_exec(config):
     """
     Main execution line. Dispatch processes according to parameter groups.
@@ -247,11 +261,10 @@ def main_exec(config):
     dataset = TILDataset(config.data, augment=config.augment,keep=config.keepimg,imsize=config.tdim,proc=config.cpu_count,cache=config.cache)
     if not config.test is None:
         dataset_test = TILDataset(config.test, augment=False,keep=False,imsize=config.tdim,proc=config.cpu_count,cache=config.cache)
-    elif not config.split is None:
+    elif not config.tsize is None:
         # split the dataset in train and test set
         indices = torch.randperm(len(dataset)).tolist()
-        dataset = torch.utils.data.Subset(dataset, indices[:-config.tsize])
-        dataset_test = torch.utils.data.Subset(dataset_test, indices[-config.tsize:])
+        dataset_test = dataset.get_subset(indices[-config.tsize:],replace=True)
 
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
@@ -400,7 +413,7 @@ def main_exec(config):
             criterion = torch.nn.CrossEntropyLoss()
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
             
-        alu.evaluate(model, criterion, data_loader_test, device=device)
+        alu.evaluate(model, criterion, data_loader_test, device=device,calc_auc=True)
             
         
 if __name__ == "__main__":
