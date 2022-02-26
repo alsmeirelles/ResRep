@@ -259,7 +259,8 @@ def main_exec(config):
 
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test, batch_size=1, shuffle=False, num_workers=config.cpu_count)    
-    
+
+    model = None
     ## Main execution sequence
     if config.rrtrain:
         from ndp_train import train_main
@@ -325,7 +326,7 @@ def main_exec(config):
         model.to(device)
         train_conf = (optimizer,lr_scheduler,criterion)
         train_main(local_rank=0,cfg=bcfg,net=model,train_dataloader=data_loader,
-                       val_dataloader=None,init_hdf5=None,train_conf=train_conf,show_variables=True)
+                       val_dataloader=None,init_hdf5=None,train_conf=train_conf,show_variables=True,num_gpus=config.gpu_count)
 
     elif config.train:
         ## Common definitions
@@ -370,8 +371,24 @@ def main_exec(config):
 
         run_engine.save_hdf5(os.path.join(config.weights_path, '{}-finish.hdf5'.format(config.network)))
 
-    elif config.predict:
-        pass
+    if config.predict:
+        from ndp_test import ding_test
+
+        #Load model if one was not just trained
+        if model is None:
+            deps = extract_deps_from_weights_file(config.weights_path)
+
+        cfg = BaseConfigByEpoch(network_type=network_type, dataset_name="TILDataset",
+                             dataset_subset=dataset_subset, global_batch_size=global_batch_size, num_node=1, device=device,
+                             weight_decay=None, weight_decay_bias=None, optimizer_type=None, momentum=None, bias_lr_factor=None,
+                             max_epochs=None, base_lr=None, lr_epoch_boundaries=None, lr_decay_factor=None, linear_final_lr=None, cosine_minimum=None,
+                             warmup_epochs=None, warmup_method=None, warmup_factor=None, ckpt_iter_period=None,
+                             tb_iter_period=None, output_dir=None, tb_dir=None, init_weights=init_weights,
+                             save_weights=None, val_epoch_period=None, grad_accum_iters=None, deps=deps,
+                             se_reduce_scale=se_reduce_scale, se_layers=se_layers)
+        
+        #ding_test(cfg:BaseConfigByEpoch, net=None, val_dataloader=None, show_variables=False, convbuilder=None,
+        #       init_hdf5=None, extra_msg=None, weights_dict=None)
         
 if __name__ == "__main__":
 
@@ -402,7 +419,7 @@ if __name__ == "__main__":
         help='Applies data augmentation during training.',default=False)
     train_args.add_argument('-wpath', dest='weights_path',
         help='Use weights file contained in path - usefull for sequential training (Default: None).',
-        default='ModelWeights')
+        default=None)
     train_args.add_argument('-tdim', dest='tdim', nargs='+', type=int, 
         help='Tile width and heigth, optionally inform the number of channels (Use: 200 200 for SVS 50 um).', 
         default=None, metavar=('Width', 'Height'))
@@ -447,6 +464,9 @@ if __name__ == "__main__":
 
     config, unparsed = parser.parse_known_args()
 
+    if config.weights_path is None:
+        config.weights_path = config.temp
+        
     if not os.path.isdir(config.cache):
         os.mkdir(config.cache)
 

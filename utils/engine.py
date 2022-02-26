@@ -29,7 +29,7 @@ class State(object):
 
 
 class Engine(object):
-    def __init__(self, local_rank, for_val_only=False, base_config=None):
+    def __init__(self, local_rank, for_val_only=False, base_config=None,num_gpus=None):
         self.version = 0.01
         self.state = State()
         self.devices = None
@@ -48,7 +48,10 @@ class Engine(object):
 
         # self.continue_state_object = self.args.continue_fpath
 
-        num_gpus = torch.cuda.device_count()
+        avail_gpus = torch.cuda.device_count()
+        if (not num_gpus is None and num_gpus > avail_gpus) or num_gpus is None:
+            num_gpus = avail_gpus
+
         self.local_rank = local_rank
         if num_gpus > 1 and not for_val_only:
             self.distributed = True
@@ -57,8 +60,8 @@ class Engine(object):
                 assert 'RANK' not in os.environ
                 self.world_size = 1
                 self.world_rank = 0
-                os.environ['WORLD_SIZE'] = self.world_size
-                os.environ['RANK'] = self.world_rank
+                os.environ['WORLD_SIZE'] = str(self.world_size)
+                os.environ['RANK'] = str(self.world_rank)
             #   multi machine
             else:
                 self.world_size = int(os.environ['WORLD_SIZE'])
@@ -82,25 +85,7 @@ class Engine(object):
         else:
             self.logger = None
 
-        # if not self.logger:
-        #     self.logger = get_logger(
-        #         name, log_dir, self.local_rank, filename=file_name)
-        # else:
-        #     self.logger.warning('already exists logger')
         return self.logger
-
-    # def inject_default_parser(self):
-    #     p = self.parser
-    #     p.add_argument(
-    #         '-d', '--devices', default='0',
-    #         help='set data parallel training')
-    #     p.add_argument(
-    #         '-c', '--continue', type=extant_file, metavar="FILE",
-    #         dest="continue_fpath",
-    #         help='continue from one certain checkpoint')
-    #     p.add_argument(
-    #         '--local_rank', default=0, type=int,
-    #         help='process rank on node')
 
     def register_state(self, **kwargs):
         self.state.register(**kwargs)
@@ -142,10 +127,6 @@ class Engine(object):
         del state_dict
         del new_state_dict
 
-        # self.logger.info(
-        #     "Save checkpoint to file {}, "
-        #     "Time usage:\n\tprepare snapshot: {}, IO: {}".format(
-        #         path, t_io_begin - t_start, t_end - t_io_begin))
 
     def load_checkpoint(self, weights, is_restore=False):
 
@@ -182,12 +163,6 @@ class Engine(object):
         current_iter_checkpoint = osp.join(
             snapshot_dir, 'iter-{}.pth'.format(self.state.iteration))
         self.save_checkpoint(current_iter_checkpoint)
-        # last_iter_checkpoint = osp.join(
-        #     snapshot_dir, 'iter-last.pth')
-        # link_file(current_iter_checkpoint, last_iter_checkpoint)
-
-    # def restore_checkpoint(self):
-    #     self.load_checkpoint(self.continue_state_object, is_restore=True)
 
     def save_hdf5(self, path):
         if self.local_rank > 0:
