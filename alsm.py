@@ -260,7 +260,10 @@ def main_exec(config):
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test, batch_size=1, shuffle=False, num_workers=config.cpu_count)    
 
+    #Needed both for training and testing
     model = None
+    criterion = None
+    
     ## Main execution sequence
     if config.rrtrain:
         from ndp_train import train_main
@@ -372,23 +375,33 @@ def main_exec(config):
         run_engine.save_hdf5(os.path.join(config.weights_path, '{}-finish.hdf5'.format(config.network)))
 
     if config.predict:
-        from ndp_test import ding_test
-
+        from base_config import get_baseconfig_for_test
+        from builder import ConvBuilder
+        
         #Load model if one was not just trained
         if model is None:
-            deps = extract_deps_from_weights_file(config.weights_path)
+            weights_file = os.path.join(config.weights_path,'finish.hdf5')
+            if not os.path.isfile(weights_file):
+                print("No model available and no weights found: {}".format(weights_file))
+                sys.exit(1)
+            cfg = get_baseconfig_for_test(network_type=config.network, dataset_subset='test', global_batch_size=config.batch_size,
+                                          init_weights=weights_file, deps=None, dataset_name='TILDataset')
+            
+            convbuilder = ConvBuilder(base_config=cfg)
+            model = getattr(base_model,config.network)(cfg, convbuilder, num_classes = dataset.num_classes)
+            model.input_size = (3,) + config.tdim
+            model.input_space = dataset.input_space
+            model.input_range = dataset.input_range
 
-        cfg = BaseConfigByEpoch(network_type=network_type, dataset_name="TILDataset",
-                             dataset_subset=dataset_subset, global_batch_size=global_batch_size, num_node=1, device=device,
-                             weight_decay=None, weight_decay_bias=None, optimizer_type=None, momentum=None, bias_lr_factor=None,
-                             max_epochs=None, base_lr=None, lr_epoch_boundaries=None, lr_decay_factor=None, linear_final_lr=None, cosine_minimum=None,
-                             warmup_epochs=None, warmup_method=None, warmup_factor=None, ckpt_iter_period=None,
-                             tb_iter_period=None, output_dir=None, tb_dir=None, init_weights=init_weights,
-                             save_weights=None, val_epoch_period=None, grad_accum_iters=None, deps=deps,
-                             se_reduce_scale=se_reduce_scale, se_layers=se_layers)
-        
-        #ding_test(cfg:BaseConfigByEpoch, net=None, val_dataloader=None, show_variables=False, convbuilder=None,
-        #       init_hdf5=None, extra_msg=None, weights_dict=None)
+            test_engine = engine.Engine(local_rank=0, for_val_only=True)
+            test_engine.setup_log(name='test', log_dir=config.temp, file_name='test_detail.log')
+            test_engine.register_state(scheduler=None, model=model, optimizer=None)
+            test_engine.load_hdf5(weights_file)
+            criterion = torch.nn.CrossEntropyLoss()
+            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+            
+        alu.evaluate(model, criterion, data_loader_test, device=device)
+            
         
 if __name__ == "__main__":
 
@@ -429,7 +442,7 @@ if __name__ == "__main__":
     ##Predictions
     pred_args = parser.add_argument_group('Predictions')
     arg_groups.append(pred_args)
-    pred_args.add_argument('--pred', action='store_true', dest='pred', default=False, 
+    pred_args.add_argument('--pred', action='store_true', dest='predict', default=False, 
         help='Runs prediction with a given model (use -net parameter).')
     pred_args.add_argument('-test',dest='test',type=str,help='Test set path',default=None)
     pred_args.add_argument('-tsize', dest='tsize', type=int, 

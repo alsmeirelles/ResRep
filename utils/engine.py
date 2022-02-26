@@ -53,29 +53,36 @@ class Engine(object):
             num_gpus = avail_gpus
 
         self.local_rank = local_rank
-        if num_gpus > 1 and not for_val_only:
-            self.distributed = True
-            #   single machine
-            if 'WORLD_SIZE' not in os.environ:
-                assert 'RANK' not in os.environ
-                self.world_size = 1
-                self.world_rank = 0
-                os.environ['WORLD_SIZE'] = str(self.world_size)
-                os.environ['RANK'] = str(self.world_rank)
-            #   multi machine
-            else:
-                self.world_size = int(os.environ['WORLD_SIZE'])
-                self.world_rank = int(os.environ['RANK'])
+        self.cuda_avail = torch.cuda.is_available()
+        if self.cuda_avail:
+            if num_gpus > 1 and not for_val_only:
+                self.distributed = True
+                #   single machine
+                if 'WORLD_SIZE' not in os.environ:
+                    assert 'RANK' not in os.environ
+                    self.world_size = 1
+                    self.world_rank = 0
+                    os.environ['WORLD_SIZE'] = str(self.world_size)
+                    os.environ['RANK'] = str(self.world_rank)
+                #   multi machine
+                else:
+                    self.world_size = int(os.environ['WORLD_SIZE'])
+                    self.world_rank = int(os.environ['RANK'])
 
-            torch.cuda.set_device(self.local_rank)
-            dist.init_process_group(backend='nccl', init_method='env://')
-            dist.barrier()
-            self.devices = [i for i in range(self.world_size)]
+                torch.cuda.set_device(self.local_rank)
+                dist.init_process_group(backend='nccl', init_method='env://')
+                dist.barrier()
+                self.devices = [i for i in range(self.world_size)]
+            else:
+                self.world_size = 1
+                self.world_rank = 1
+                # self.devices = parse_torch_devices(self.args.devices)TODO
+                self.devices = [0]
         else:
-            self.world_size = 1
-            self.world_rank = 1
+            self.world_size = 0
+            self.world_rank = 0
             # self.devices = parse_torch_devices(self.args.devices)TODO
-            self.devices = [0]
+            self.devices = None
 
 
     def setup_log(self, name='train', log_dir=None, file_name=None):
@@ -232,7 +239,10 @@ class Engine(object):
         # if value.size != param.nelement():
         #     print('not equal: ', value.size, param.nelement)
         #     assert 0
-        param.data = torch.from_numpy(value).cuda().type(torch.cuda.FloatTensor)
+        if self.cuda_avail:
+            param.data = torch.from_numpy(value).cuda().type(torch.cuda.FloatTensor)
+        else:
+            param.data = torch.from_numpy(value)
 
     def load_from_weights_dict(self, hdf5_dict, load_weights_keyword=None, path=None, ignore_keyword='IGNORE_KEYWORD'):
         assigned_params = 0
