@@ -2,6 +2,7 @@ import datetime
 import os
 import time
 import warnings
+import numpy as np
 
 import torch
 import torch.utils.data
@@ -237,7 +238,10 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
         metric_logger.meters["img/s"].update(batch_size / (time.time() - start_time))
 
 
-def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix=""):
+def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="",calc_auc=False):
+    #Scikit learn
+    from sklearn import metrics
+    
     model.eval()
     metric_logger = MetricLogger(delimiter="  ")
     header = f"Test: {log_suffix}"
@@ -245,13 +249,28 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     num_processed_samples = 0
     if isinstance(device,str):
         device = torch.device(device)
-        
+
+    Y_pred = None
+    expected = None
+
+    count = 0
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
             image = image.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
             output = model(image)
             loss = criterion(output, target)
+
+            if calc_auc:
+                if Y_pred is None:
+                    Y_pred = np.zeros((len(data_loader),output.shape[1]),dtype=np.float32)
+
+                if expected is None:
+                    expected = np.zeros((len(data_loader),output.shape[1]),dtype=np.int32)
+
+                Y_pred[count] = output.numpy()
+                expected[count][target.item()] ^= 1
+                count += 1
 
             if output.shape[1] > 5:
                 acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
@@ -266,6 +285,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
             metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
             if not acc5 is None:
                 metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+                
             num_processed_samples += batch_size
     # gather the stats from all processes
 
@@ -284,11 +304,16 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
         )
 
     metric_logger.synchronize_between_processes()
-
+        
     if not acc5 is None:
         print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
+    elif calc_auc:
+        print(expected)
+        auc = metrics.roc_auc_score(expected,Y_pred)
+        print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} AUC {auc:.3f}")
     else:
         print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f}")
+        
     return metric_logger.acc1.global_avg
 
 
