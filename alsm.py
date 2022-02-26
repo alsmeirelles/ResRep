@@ -324,7 +324,7 @@ def main_exec(config):
         device = torch.device(device)
         model.to(device)
         train_conf = (optimizer,lr_scheduler,criterion)
-        train_main(local_rank=0,cfg=bcfg,net=model,train_dataloader=data_loader,
+        train_main(local_rank=config.lrank,cfg=bcfg,net=model,train_dataloader=data_loader,
                        val_dataloader=None,init_hdf5=None,train_conf=train_conf,show_variables=True)
 
     elif config.train:

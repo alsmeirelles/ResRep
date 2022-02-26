@@ -57,8 +57,8 @@ class Engine(object):
                 assert 'RANK' not in os.environ
                 self.world_size = 1
                 self.world_rank = 0
-                os.environ['WORLD_SIZE'] = self.world_size
-                os.environ['RANK'] = self.world_rank
+                os.environ['WORLD_SIZE'] = str(self.world_size)
+                os.environ['RANK'] = str(self.world_rank)
             #   multi machine
             else:
                 self.world_size = int(os.environ['WORLD_SIZE'])
