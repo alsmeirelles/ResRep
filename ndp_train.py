@@ -183,7 +183,6 @@ def train_main(local_rank,
                 model, device_ids=[local_rank],
                 broadcast_buffers=False, )
         elif cfg.device == 'cuda':
-            assert torch.cuda.device_count() == 1
             engine.echo('Single GPU training')
 
         if tensorflow_style_init:
