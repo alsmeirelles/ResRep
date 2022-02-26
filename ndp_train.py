@@ -114,7 +114,8 @@ def train_main(local_rank,
                    auto_continue=False,
                    lasso_keyword_to_strength=None,
                    train_conf=None,
-                   save_hdf5_epochs=10000):
+                   save_hdf5_epochs=10000,
+                   num_gpus=0):
 
     if no_l2_keywords is None:
         no_l2_keywords = []
@@ -123,7 +124,7 @@ def train_main(local_rank,
 
     ensure_dir(cfg.output_dir)
     ensure_dir(cfg.tb_dir)
-    with Engine(local_rank=local_rank) as engine:
+    with Engine(local_rank=local_rank,num_gpus=num_gpus) as engine:
         engine.setup_log(
             name='train', log_dir=cfg.output_dir, file_name='log.txt')
 
