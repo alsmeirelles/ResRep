@@ -13,7 +13,7 @@ class ResRepBuilder(ConvBuilder):
         self.mode = mode
 
     def Conv2dBN(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
-               padding_mode='zeros', use_original_conv=False):
+               padding_mode='zeros', use_original_conv=False, bias=True):
         self.cur_conv_idx += 1
         assert type(kernel_size) is int
         in_channels = int(in_channels)
@@ -23,14 +23,14 @@ class ResRepBuilder(ConvBuilder):
             se = self.Sequential()
             se.add_module('conv', super(ResRepBuilder, self).Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride,
                                                                     padding=padding, dilation=dilation, groups=groups, padding_mode=padding_mode,
-                                                                    bias=True))
+                                                                    bias=bias))
             return se
 
         if use_original_conv or self.cur_conv_idx not in self.resrep_config.target_layers:
             self.cur_conv_idx -= 1
             print('layer {}, use original conv'.format(self.cur_conv_idx + 1))
             return super(ResRepBuilder, self).Conv2dBN(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride,
-                                                       padding=padding, dilation=dilation, groups=groups, padding_mode=padding_mode)
+                                                       padding=padding, dilation=dilation, groups=groups, padding_mode=padding_mode,bias=bias)
 
         else:
 

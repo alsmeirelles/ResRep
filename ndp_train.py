@@ -253,8 +253,6 @@ def train_main(local_rank,
             for i,(data,label) in enumerate(train_data):
 
                 if cfg.device == 'cuda':
-                #    data.cuda()
-                #    label.cuda()
                     dev = torch.device(cfg.device)
                     data = data.to(dev)
                     label = label.to(dev)
