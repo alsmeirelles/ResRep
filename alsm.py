@@ -265,6 +265,7 @@ def main_exec(config):
         # split the dataset in train and test set
         indices = torch.randperm(len(dataset)).tolist()
         dataset_test = dataset.get_subset(indices[-config.tsize:],replace=True)
+        dataset_test._augmenter = None
 
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
@@ -276,6 +277,8 @@ def main_exec(config):
     #Needed both for training and testing
     model = None
     criterion = None
+    lr_scheduler = None
+    optimizer = None
     
     ## Main execution sequence
     if config.rrtrain:
@@ -387,6 +390,27 @@ def main_exec(config):
 
         run_engine.save_hdf5(os.path.join(config.weights_path, '{}-finish.hdf5'.format(config.network)))
 
+    elif config.resrep:
+        from rr.exp_resrep import run_rr
+
+        model = getattr(base_model,config.network)
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
+        other_args = {'arch':config.network, 'conti_or_fs':'fs', 'dataset_name':'TILDataset','batch_size':config.batch_size,'output_dir':config.temp,
+                        'local_rank':config.lrank,'model':model,'num_classes':dataset.num_classes,'device':device, 'learn_r':config.learn_r,'epochs':config.epochs}
+        other_args = SimpleNamespace(**other_args)
+
+        if not optimizer is None and lr_scheduler is None:
+            lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                                        step_size=5,
+                                                        gamma=0.5)
+
+        if criterion is None:
+            criterion = torch.nn.CrossEntropyLoss()
+
+        train_conf = (optimizer,lr_scheduler,criterion)
+        run_rr(other_args,train_dataloader=data_loader,train_cfg=train_conf)
+
     if config.predict:
         from base_config import get_baseconfig_for_test
         from builder import ConvBuilder
@@ -486,6 +510,9 @@ if __name__ == "__main__":
         help='Return general info about data input, the CNN, etc.')
     parser.add_argument('-d', action='store_true', dest='delay_load', default=False, 
         help='Delay the loading of images to the latest moment possible (memory efficiency).')
+
+    parser.add_argument('--rr', action='store_true', dest='resrep', default=False, 
+        help='Runs reduction on a given model (use -net parameter).')
 
 
     config, unparsed = parser.parse_known_args()

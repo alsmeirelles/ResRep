@@ -44,7 +44,12 @@ def train_one_step(compactor_mask_dict, resrep_config:ResRepConfig,
                     param.grad = param.grad * gradient_mask_tensor[name]
         optimizer.step()
         optimizer.zero_grad()
-    acc, acc5 = torch_accuracy(pred, label, (1,5))
+    if net.num_classes > 5:
+        acc, acc5 = torch_accuracy(pred, label, (1,5))
+    else:
+        acc, = torch_accuracy(pred, label, (1,))
+        acc5 = None
+        
     return acc, acc5, loss
 
 def sgd_optimizer(cfg, resrep_config:ResRepConfig, model, no_l2_keywords, use_nesterov, keyword_to_lr_mult):
@@ -104,7 +109,9 @@ def resrep_train_main(local_rank,
                           load_weights_keyword=None,
                           keyword_to_lr_mult=None,
                           auto_continue=False,
-                          save_hdf5_epochs=5):
+                          save_hdf5_epochs=5,
+                          num_classes=1000,
+                          train_cfg=None):
 
     """
     Parameters:
@@ -135,26 +142,46 @@ def resrep_train_main(local_rank,
             net_fn = get_model_fn(cfg.dataset_name, cfg.network_type)
             model = net_fn(cfg, resrep_builder)
         else:
-            model = net
-        model = model.cuda()
+            model = net(cfg,resrep_builder,num_classes=num_classes)
+            
+        if cfg.device == 'cuda':
+            model = model.cuda()
         # ----------------------------- model done ------------------------------
 
         # ---------------------------- prepare data -------------------------
         if train_dataloader is None:
             train_data = create_dataset(cfg.dataset_name, cfg.dataset_subset,
                                         cfg.global_batch_size, distributed=engine.distributed)
+        else:
+            train_data = train_dataloader
+            
         if cfg.val_epoch_period > 0 and val_dataloader is None:
             val_data = create_dataset(cfg.dataset_name, 'val',
                                       global_batch_size=100, distributed=False)
+        else:
+            val_data = val_dataloader
+            
         engine.echo('NOTE: Data prepared')
         engine.echo('NOTE: We have global_batch_size={} on {} GPUs, the allocated GPU memory is {}'.format(cfg.global_batch_size, torch.cuda.device_count(), torch.cuda.memory_allocated()))
         # ----------------------------- data done --------------------------------
 
         # ------------------------ parepare optimizer, scheduler, criterion -------
-        optimizer = get_optimizer(cfg, resrep_config, model,
-                                  no_l2_keywords=no_l2_keywords, use_nesterov=use_nesterov, keyword_to_lr_mult=keyword_to_lr_mult)
-        scheduler = get_lr_scheduler(cfg, optimizer)
-        criterion = get_criterion(cfg).cuda()
+
+        if not train_cfg is None:
+            optimizer,scheduler,criterion = train_cfg
+
+        if optimizer is None:
+            params = [p for p in model.parameters() if p.requires_grad]
+            #optimizer = torch.optim.SGD(params, lr=config.learn_r,
+            #                            momentum=0.9, weight_decay=0.0005)
+            optimizer = torch.optim.Adam(params,lr=cfg.base_lr,weight_decay=0.0)
+            
+        if scheduler is None:
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                                        step_size=5,
+                                                        gamma=0.5)
+        if criterion is None:
+            criterion = get_criterion(cfg).cuda()
         # --------------------------------- done -------------------------------
 
         engine.register_state(
@@ -181,18 +208,18 @@ def resrep_train_main(local_rank,
             model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[local_rank],
                 broadcast_buffers=False, )
-        else:
+        elif cfg.device == 'cuda':
             assert torch.cuda.device_count() == 1
             engine.echo('Single GPU training')
 
-        if cfg.init_weights:
-            engine.load_checkpoint(cfg.init_weights)
-        if init_hdf5:
-            engine.load_hdf5(init_hdf5, load_weights_keyword=load_weights_keyword)
+        #if cfg.init_weights:
+        #    engine.load_checkpoint(cfg.init_weights)
+        #if init_hdf5:
+        #    engine.load_hdf5(init_hdf5, load_weights_keyword=load_weights_keyword)
 
-        if auto_continue:
-            assert cfg.init_weights is None
-            engine.load_checkpoint(get_last_checkpoint(cfg.output_dir))
+        #if auto_continue:
+        #    assert cfg.init_weights is None
+        #    engine.load_checkpoint(get_last_checkpoint(cfg.output_dir))
         if show_variables:
             engine.show_variables()
 
@@ -200,7 +227,7 @@ def resrep_train_main(local_rank,
         engine.log("\n\nStart training with pytorch version {}".format(torch.__version__))
 
         iteration = engine.state.iteration
-        iters_per_epoch = num_iters_per_epoch(cfg)
+        iters_per_epoch = len(train_dataloader)
         max_iters = iters_per_epoch * cfg.max_epochs
         tb_writer = SummaryWriter(cfg.tb_dir)
         tb_tags = ['Top1-Acc', 'Top5-Acc', 'Loss']
@@ -230,7 +257,7 @@ def resrep_train_main(local_rank,
 
         for epoch in range(done_epochs, cfg.max_epochs):
 
-            if epoch == 0 and engine.local_rank == 0:
+            if epoch == 0 and engine.local_rank == 0 and not val_data is None:
                 val_during_train(epoch=epoch, iteration=iteration, tb_tags=tb_tags, engine=engine, model=model,
                              val_data=val_data, criterion=criterion,
                                  descrip_str='Begin',
@@ -250,7 +277,12 @@ def resrep_train_main(local_rank,
             discrip_str = 'Epoch-{}/{}'.format(epoch, cfg.max_epochs)
             pbar.set_description('Train' + discrip_str)
 
-            for _ in pbar:
+            for i,(data,label) in enumerate(train_data):
+
+                if cfg.device == 'cuda':
+                    dev = torch.device(cfg.device)
+                    data = data.to(dev)
+                    label = label.to(dev)
 
                 if iteration > resrep_config.before_mask_iters:
                     total_iters_in_compactor_phase = iteration - resrep_config.before_mask_iters
@@ -265,7 +297,6 @@ def resrep_train_main(local_rank,
 
 
                 start_time = time.time()
-                data, label = load_cuda_data(train_data, dataset_name=cfg.dataset_name)
 
                 # load_cuda_data(train_dataloader, cfg.dataset_name)
                 data_time = time.time() - start_time
@@ -281,19 +312,24 @@ def resrep_train_main(local_rank,
                 if iteration > TRAIN_SPEED_START * max_iters and iteration < TRAIN_SPEED_END * max_iters:
                     recorded_train_examples += cfg.global_batch_size
                     recorded_train_time += train_net_time_end - train_net_time_start
-
-                scheduler.step()
+                    
+                pbar.update(1)
 
                 for module in model.modules():
                     if hasattr(module, 'set_cur_iter'):
                         module.set_cur_iter(iteration)
 
                 if iteration % cfg.tb_iter_period == 0 and engine.world_rank == 0:
-                    for tag, value in zip(tb_tags, [acc.item(), acc5.item(), loss.item()]):
-                        tb_writer.add_scalars(tag, {'Train': value}, iteration)
+                    if not acc5 is None:
+                        for tag, value in zip(tb_tags, [acc.item(), acc5.item(), loss.item()]):
+                            tb_writer.add_scalars(tag, {'Train': value}, iteration)
+                    else:
+                        for tag, value in zip(tb_tags, [acc.item(), loss.item()]):
+                            tb_writer.add_scalars(tag, {'Train': value}, iteration)
 
                 top1.update(acc.item())
-                top5.update(acc5.item())
+                if not acc5 is None:
+                    top5.update(acc5.item())
                 losses.update(loss.item())
 
                 if epoch >= cfg.max_epochs - COLLECT_TRAIN_LOSS_EPOCHS:
@@ -305,7 +341,8 @@ def resrep_train_main(local_rank,
                 pbar_dic['cur_iter'] = iteration
                 pbar_dic['lr'] = scheduler.get_lr()[0]
                 pbar_dic['top1'] = '{:.5f}'.format(top1.mean)
-                pbar_dic['top5'] = '{:.5f}'.format(top5.mean)
+                if not acc5 is None:
+                    pbar_dic['top5'] = '{:.5f}'.format(top5.mean)
                 pbar_dic['loss'] = '{:.5f}'.format(losses.mean)
                 pbar.set_postfix(pbar_dic)
 
@@ -327,6 +364,8 @@ def resrep_train_main(local_rank,
                 if iteration >= max_iters:
                     break
 
+                
+            scheduler.step()
             engine.update_iteration(iteration)
             engine.save_latest_ckpt(cfg.output_dir)
 

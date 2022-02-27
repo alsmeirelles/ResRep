@@ -308,7 +308,6 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     if not acc5 is None:
         print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
     elif calc_auc:
-        print(expected)
         auc = metrics.roc_auc_score(expected,Y_pred)
         print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} AUC {auc:.3f}")
     else:
