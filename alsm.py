@@ -265,6 +265,7 @@ def main_exec(config):
         # split the dataset in train and test set
         indices = torch.randperm(len(dataset)).tolist()
         dataset_test = dataset.get_subset(indices[-config.tsize:],replace=True)
+        dataset_test._augmenter = None
 
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(

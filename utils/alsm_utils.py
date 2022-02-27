@@ -268,7 +268,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
                 if expected is None:
                     expected = np.zeros((len(data_loader),output.shape[1]),dtype=np.int32)
 
-                Y_pred[count] = output.numpy()
+                Y_pred[count] = output.cpu().numpy()
                 expected[count][target.item()] ^= 1
                 count += 1
 
@@ -308,7 +308,6 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     if not acc5 is None:
         print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
     elif calc_auc:
-        print(expected)
         auc = metrics.roc_auc_score(expected,Y_pred)
         print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} AUC {auc:.3f}")
     else:
