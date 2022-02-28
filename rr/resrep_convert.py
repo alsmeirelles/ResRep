@@ -38,6 +38,7 @@ def fuse_conv_bn(save_dict, pop_name_set, kernel_name,thresh):
     return _fuse_kernel(kernel_value, gamma, var, eps=thresh), _fuse_bias(mean, var, gamma, beta, eps=thresh)
 
 def fold_conv(fused_k, fused_b, thresh, compactor_mat):
+    print("CM shape: {}".format(compactor_mat.shape))
     metric_vec = np.sqrt(np.sum(compactor_mat ** 2, axis=(1, 2, 3)))
     filter_ids_below_thresh = np.where(metric_vec < thresh)[0]
 

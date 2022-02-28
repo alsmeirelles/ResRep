@@ -11,7 +11,7 @@ import argparse
 from ndp_test import general_test
 import os
 
-def run_rr(cfg,train_dataloader=None,val_dataloader=None,train_cfg=None):
+def run_rr(cfg,train_dataloader=None,val_dataloader=None,test_dataloader=None,train_cfg=None):
 
     network_type = cfg.arch
     conti_or_fs = cfg.conti_or_fs
@@ -87,8 +87,9 @@ def run_rr(cfg,train_dataloader=None,val_dataloader=None,train_cfg=None):
     print('######################################################')
 
     conv_weights = os.path.join(cfg.output_dir,  'finish_converted.hdf5')
+    rmodel = None
     if not os.path.exists(conv_weights):
-        resrep_train_main(local_rank=cfg.local_rank, 
+        rmodel = resrep_train_main(local_rank=cfg.local_rank, 
                           cfg=config, resrep_config=resrep_config, resrep_builder=resrep_builder, show_variables=True,
                           init_hdf5=init_hdf5, net=cfg.model, train_dataloader=train_dataloader, val_dataloader=val_dataloader,
                           auto_continue=auto_continue,train_cfg = train_cfg,
@@ -99,14 +100,15 @@ def run_rr(cfg,train_dataloader=None,val_dataloader=None,train_cfg=None):
     print('######################################################')
     print('After convertion, the reduced flops is ', flops_func(rdeps))
     print('######################################################')
-    
-    general_test(network_type=network_type,train_dataloader=train_dataloader,
-                 weights=conv_weights,
-                 builder=ResRepBuilder(base_config=config, resrep_config=resrep_config,
-                                       mode='deploy'))
+
+    #Runs test from main script
+    #general_test(network_type=network_type,test_dataloader=test_dataloader,
+    #             weights=conv_weights, net=cfg.model, num_classes=cfg.num_classes,
+    #             builder=ResRepBuilder(base_config=config, resrep_config=resrep_config,
+    #                                   mode='deploy'))
 
 
-
+    return rmodel
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

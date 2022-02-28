@@ -200,7 +200,7 @@ def resrep_train_main(local_rank,
                                   succ_strategy=resrep_config.succeeding_strategy,
                                   save_path=os.path.join(cfg.output_dir, 'finish_converted.hdf5'))
 
-            return
+            return model
 
         if engine.distributed:
             torch.cuda.set_device(local_rank)
@@ -407,3 +407,4 @@ def resrep_train_main(local_rank,
                               save_path=os.path.join(cfg.output_dir, 'finish_converted.hdf5'))
 
 
+        return model
