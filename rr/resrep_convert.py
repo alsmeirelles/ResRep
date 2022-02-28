@@ -19,7 +19,7 @@ def _fuse_bias(running_mean, running_var, gamma, beta, eps, bias=None):
     else:
         return beta + (bias - running_mean) * gamma / np.sqrt(running_var + eps)
 
-def fuse_conv_bn(save_dict, pop_name_set, kernel_name,thresh):
+def fuse_conv_bn(save_dict, pop_name_set, kernel_name,thresh=1e-5):
     mean_name = kernel_name.replace('.conv.weight', '.bn.running_mean')
     var_name = kernel_name.replace('.conv.weight', '.bn.running_var')
     gamma_name = kernel_name.replace('.conv.weight', '.bn.weight')
@@ -38,7 +38,9 @@ def fuse_conv_bn(save_dict, pop_name_set, kernel_name,thresh):
     return _fuse_kernel(kernel_value, gamma, var, eps=thresh), _fuse_bias(mean, var, gamma, beta, eps=thresh)
 
 def fold_conv(fused_k, fused_b, thresh, compactor_mat):
+    print("CM shape: {}".format(compactor_mat.shape))
     metric_vec = np.sqrt(np.sum(compactor_mat ** 2, axis=(1, 2, 3)))
+    print("MV: {}".format(metric_vec))
     filter_ids_below_thresh = np.where(metric_vec < thresh)[0]
 
     if len(filter_ids_below_thresh) == len(metric_vec):
@@ -84,7 +86,7 @@ def compactor_convert(model, origin_deps, thresh, pacesetter_dict, succ_strategy
         kernel_value = save_dict[kernel_name]
         if kernel_value.ndim == 2:
             continue
-        fused_k, fused_b = fuse_conv_bn(save_dict, pop_name_set, kernel_name,thresh)
+        fused_k, fused_b = fuse_conv_bn(save_dict, pop_name_set, kernel_name)
         cur_conv_idx += 1
         fold_direct = cur_conv_idx in compactor_mats
         fold_follower = (pacesetter_dict is not None and cur_conv_idx in pacesetter_dict and pacesetter_dict[cur_conv_idx] in compactor_mats)
@@ -95,7 +97,7 @@ def compactor_convert(model, origin_deps, thresh, pacesetter_dict, succ_strategy
                 fm = compactor_mats[pacesetter_dict[cur_conv_idx]]
             fused_k, fused_b, pruned_ids = fold_conv(fused_k, fused_b, thresh, fm)
             pruned_deps[cur_conv_idx] -= len(pruned_ids)
-            print('pruned ids: ', pruned_ids)
+            print('CC pruned ids: ', pruned_ids)
             if len(pruned_ids) > 0 and conv_id in succ_strategy:
                 followers = succ_strategy[conv_id]
                 if type(followers) is not list:
