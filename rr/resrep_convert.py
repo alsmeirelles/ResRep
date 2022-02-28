@@ -19,7 +19,7 @@ def _fuse_bias(running_mean, running_var, gamma, beta, eps, bias=None):
     else:
         return beta + (bias - running_mean) * gamma / np.sqrt(running_var + eps)
 
-def fuse_conv_bn(save_dict, pop_name_set, kernel_name):
+def fuse_conv_bn(save_dict, pop_name_set, kernel_name,thresh):
     mean_name = kernel_name.replace('.conv.weight', '.bn.running_mean')
     var_name = kernel_name.replace('.conv.weight', '.bn.running_var')
     gamma_name = kernel_name.replace('.conv.weight', '.bn.weight')
@@ -35,7 +35,7 @@ def fuse_conv_bn(save_dict, pop_name_set, kernel_name):
     kernel_value = save_dict[kernel_name]
     print('kernel name', kernel_name)
     print('kernel, mean, var, gamma, beta', kernel_value.shape, mean.shape, var.shape, gamma.shape, beta.shape)
-    return _fuse_kernel(kernel_value, gamma, var, eps=1e-5), _fuse_bias(mean, var, gamma, beta, eps=1e-5)
+    return _fuse_kernel(kernel_value, gamma, var, eps=thresh), _fuse_bias(mean, var, gamma, beta, eps=thresh)
 
 def fold_conv(fused_k, fused_b, thresh, compactor_mat):
     metric_vec = np.sqrt(np.sum(compactor_mat ** 2, axis=(1, 2, 3)))
@@ -84,7 +84,7 @@ def compactor_convert(model, origin_deps, thresh, pacesetter_dict, succ_strategy
         kernel_value = save_dict[kernel_name]
         if kernel_value.ndim == 2:
             continue
-        fused_k, fused_b = fuse_conv_bn(save_dict, pop_name_set, kernel_name)
+        fused_k, fused_b = fuse_conv_bn(save_dict, pop_name_set, kernel_name,thresh)
         cur_conv_idx += 1
         fold_direct = cur_conv_idx in compactor_mats
         fold_follower = (pacesetter_dict is not None and cur_conv_idx in pacesetter_dict and pacesetter_dict[cur_conv_idx] in compactor_mats)
