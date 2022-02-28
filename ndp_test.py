@@ -26,11 +26,17 @@ def run_eval(val_data, max_iters, net, criterion, discrip_str, dataset_name):
     losses = AvgMeter()
     pbar.set_description('Validation' + discrip_str)
     total_net_time = 0
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
     with torch.no_grad():
-        for iter_idx, i in enumerate(pbar):
+        for iter_idx, (data,label) in enumerate(train_data):
             start_time = time.time()
 
-            data, label = load_cuda_data(val_data, dataset_name=dataset_name)
+            if device == 'cuda':
+                dev = torch.device(cfg.device)
+                data = data.to(dev)
+                label = label.to(dev)
+                    
             data_time = time.time() - start_time
 
             net_time_start = time.time()
@@ -87,7 +93,7 @@ def get_criterion(cfg):
 
 
 def ding_test(cfg:BaseConfigByEpoch, net=None, val_dataloader=None, show_variables=False, convbuilder=None,
-               init_hdf5=None, extra_msg=None, weights_dict=None):
+               init_hdf5=None, extra_msg=None, weights_dict=None,num_classes=1000):
 
     with Engine(local_rank=0, for_val_only=True) as engine:
 
@@ -101,15 +107,14 @@ def ding_test(cfg:BaseConfigByEpoch, net=None, val_dataloader=None, show_variabl
             net_fn = get_model_fn(cfg.dataset_name, cfg.network_type)
             model = net_fn(cfg, convbuilder).cuda()
         else:
-            model = net.cuda()
+            model = net(cfg,convbuilder,num_classes=num_classes)
 
         if val_dataloader is None:
-            val_data = create_dataset(cfg.dataset_name, cfg.dataset_subset,
+            val_dataloader = create_dataset(cfg.dataset_name, cfg.dataset_subset,
                                       global_batch_size=cfg.global_batch_size, distributed=False)
-        num_examples = num_val_examples(cfg.dataset_name)
-        assert num_examples % cfg.global_batch_size == 0
-        val_iters = num_val_examples(cfg.dataset_name) // cfg.global_batch_size
-        print('batchsize={}, {} iters'.format(cfg.global_batch_size, val_iters))
+        num_batches = len(val_dataloader)
+        val_iters = num_batches * val_dataloader.batch_size
+        print('batchsize={}, {} iters'.format(val_dataloader.batch_size, val_iters))
 
         criterion = get_criterion(cfg).cuda()
 
@@ -129,12 +134,8 @@ def ding_test(cfg:BaseConfigByEpoch, net=None, val_dataloader=None, show_variabl
             if init_hdf5:
                 engine.load_hdf5(init_hdf5)
 
-        # engine.save_by_order('smi2_by_order.hdf5')
-        # engine.load_by_order('smi2_by_order.hdf5')
-        # engine.save_hdf5('model_files/stami2_lrs4Z.hdf5')
-
         model.eval()
-        eval_dict, total_net_time = run_eval(val_data, val_iters, model, criterion, 'TEST', dataset_name=cfg.dataset_name)
+        eval_dict, total_net_time = run_eval(val_dataloader, val_iters, model, criterion, 'TEST', dataset_name=cfg.dataset_name)
         val_top1_value = eval_dict['top1'].item()
         val_top5_value = eval_dict['top5'].item()
         val_loss_value = eval_dict['loss'].item()
@@ -148,7 +149,7 @@ def ding_test(cfg:BaseConfigByEpoch, net=None, val_dataloader=None, show_variabl
 
 
 def general_test(network_type, weights, builder=None, net=None, dataset_name=None, weights_dict=None,
-                 batch_size=None):
+                 batch_size=None,test_dataloader=None,num_classes=1000):
     if weights is None or weights == 'None':
         init_weights = None
         init_hdf5 = None
@@ -181,7 +182,7 @@ def general_test(network_type, weights, builder=None, net=None, dataset_name=Non
     test_config = get_baseconfig_for_test(network_type=network_type, dataset_subset='val', global_batch_size=batch_size,
                                           init_weights=init_weights, deps=deps, dataset_name=dataset_name)
     return ding_test(cfg=test_config, net=net, show_variables=True, init_hdf5=init_hdf5, convbuilder=builder,
-              extra_msg=extra_msg, weights_dict=weights_dict)
+              extra_msg=extra_msg, weights_dict=weights_dict,val_dataloader=test_dataloader,num_classes=num_classes)
 
 
 if __name__ == '__main__':

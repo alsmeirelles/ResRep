@@ -409,7 +409,8 @@ def main_exec(config):
             criterion = torch.nn.CrossEntropyLoss()
 
         train_conf = (optimizer,lr_scheduler,criterion)
-        run_rr(other_args,train_dataloader=data_loader,train_cfg=train_conf)
+        model = run_rr(other_args,train_dataloader=data_loader,test_dataloader=data_loader_test,train_cfg=train_conf)
+        config.predict = True
 
     if config.predict:
         from base_config import get_baseconfig_for_test
@@ -417,7 +418,10 @@ def main_exec(config):
         
         #Load model if one was not just trained
         if model is None:
-            weights_file = os.path.join(config.weights_path,'finish.hdf5')
+            print("Building new model")
+            weights_file = os.path.join(config.weights_path,'finish_converted.hdf5')
+            if not os.path.isfile(weights_file):
+                weights_file = os.path.join(config.weights_path,'finish.hdf5')
             if not os.path.isfile(weights_file):
                 print("No model available and no weights found: {}".format(weights_file))
                 sys.exit(1)
