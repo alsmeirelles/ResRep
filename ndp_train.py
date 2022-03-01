@@ -280,8 +280,12 @@ def train_main(local_rank,
                         module.set_cur_iter(iteration)
 
                 if iteration % cfg.tb_iter_period == 0 and engine.world_rank == 0:
-                    for tag, value in zip(tb_tags, [acc.item(), acc5.item(), loss.item()]):
-                        tb_writer.add_scalars(tag, {'Train': value}, iteration)
+                    if acc5 is None:
+                        for tag, value in zip(tb_tags, [acc.item(), loss.item()]):
+                            tb_writer.add_scalars(tag, {'Train': value}, iteration)
+                    else:
+                        for tag, value in zip(tb_tags, [acc.item(), acc5.item(), loss.item()]):
+                            tb_writer.add_scalars(tag, {'Train': value}, iteration)
 
                 top1.update(acc.item())
                 if not acc5 is None:
