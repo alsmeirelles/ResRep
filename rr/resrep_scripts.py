@@ -24,7 +24,10 @@ def calculate_mi1_flops(deps):
     return np.sum(np.array(result, dtype=np.float32))
 
 def calculate_resnet_bottleneck_flops(fd, resnet_n, original_version=False):
-    num_blocks = resnet_n_to_num_blocks[resnet_n]
+    if isinstance(resnet_n,list):
+        num_blocks = resnet_n
+    else:
+        num_blocks = resnet_n_to_num_blocks[resnet_n]
     d = convert_resnet_bottleneck_deps(fd)
     result = []
     # conv1

@@ -415,20 +415,38 @@ def main_exec(config):
     if config.predict:
         from base_config import get_baseconfig_for_test
         from builder import ConvBuilder
+        from utils.misc import extract_deps_from_weights_file
+        from rr.resrep_scripts import calculate_resnet_bottleneck_flops
+        from rr.resrep_builder import ResRepBuilder
+        from rr.resrep_config import ResRepConfig
+        import constants
         
+        weights_file = None
         #Load model if one was not just trained
         if model is None:
             print("Building new model")
             weights_file = os.path.join(config.weights_path,'finish_converted.hdf5')
-            if not os.path.isfile(weights_file):
+            cfg = get_baseconfig_for_test(network_type=config.network, dataset_subset='test', global_batch_size=config.batch_size,
+                                              init_weights=weights_file, deps=None, dataset_name='TILDataset')            
+            if os.path.isfile(weights_file):
+                rescfg = ResRepConfig(target_layers=constants.RESNET50_INTERNAL_KERNEL_IDXES, succeeding_strategy=constants.resnet_bottleneck_succeeding_strategy(50),
+                                        pacesetter_dict=constants.resnet_bottleneck_follow_dict(50), lasso_strength=1e-4,
+                                        flops_func=None, flops_target=0.455, mask_interval=200,
+                                        compactor_momentum=0.99, before_mask_iters=5*1281167//config.batch_size,
+                                        begin_granularity=4, weight_decay_on_compactor=False, num_at_least=1)
+
+            
+                convbuilder = ResRepBuilder(base_config=cfg, resrep_config=rescfg)
+            
+            else:
                 weights_file = os.path.join(config.weights_path,'finish.hdf5')
+                convbuilder = ConvBuilder(base_config=cfg)
+                
             if not os.path.isfile(weights_file):
                 print("No model available and no weights found: {}".format(weights_file))
                 sys.exit(1)
-            cfg = get_baseconfig_for_test(network_type=config.network, dataset_subset='test', global_batch_size=config.batch_size,
-                                          init_weights=weights_file, deps=None, dataset_name='TILDataset')
             
-            convbuilder = ConvBuilder(base_config=cfg)
+            
             model = getattr(base_model,config.network)(cfg, convbuilder, num_classes = dataset.num_classes)
             model.input_size = (3,) + config.tdim
             model.input_space = dataset.input_space
@@ -442,7 +460,16 @@ def main_exec(config):
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
             
         alu.evaluate(model, criterion, data_loader_test, device=device,calc_auc=True)
-            
+        #TODO: calculate FLOPS
+        if hasattr(model,'deps'):
+            rdeps = model.deps
+        elif not weights_file is None:
+            rdeps = extract_deps_from_weights_file(weights_file)
+        else:
+            print("No deps availabel")
+            sys.exit(1)
+        flops = calculate_resnet_bottleneck_flops(rdeps,model.num_blocks)
+        print("Model FLOPS: {}".format(flops))
         
 if __name__ == "__main__":
 
