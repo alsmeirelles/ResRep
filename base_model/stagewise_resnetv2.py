@@ -96,7 +96,9 @@ class SBottleneckResNet(nn.Module):
                 deps = resnet_bottleneck_origin_deps_flattened(101)
             else:
                 raise ValueError('???')
-
+            
+        self.deps = deps
+        self.num_blocks = num_blocks
         self.conv1 = builder.Conv2dBNReLU(3, deps[0], kernel_size=7, stride=2, padding=3)
         self.maxpool = builder.Maxpool2d(kernel_size=3, stride=2, padding=1)
         #   every stage has  num_block * 3 + 1

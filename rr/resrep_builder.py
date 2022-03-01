@@ -36,7 +36,7 @@ class ResRepBuilder(ConvBuilder):
 
             se = self.Sequential()
             conv_layer = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
-                                   stride=stride, padding=padding, dilation=dilation, groups=groups, bias=False,
+                                   stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias,
                                    padding_mode=padding_mode)
             se.add_module('conv', conv_layer)
             bn_layer = self.BatchNorm2d(num_features=out_channels)
