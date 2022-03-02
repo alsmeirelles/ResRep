@@ -212,12 +212,11 @@ def _resnet_bottlenck_first_internal_layer_idx_of_stage(num_blocks):
     return [2, 3+num_blocks[0]*3, 4+(num_blocks[0]+num_blocks[1])*3, 5+(num_blocks[0]+num_blocks[1]+num_blocks[2])*3]
 
 
-def convert_resnet_bottleneck_deps(deps):
-    # print('converting: ', deps) #TODO
-    assert len(deps) in [53, 104, 155]
+def convert_resnet_bottleneck_deps(deps,num_blocks=None):
     res_n = len(deps) - 3
     # print('converting the flattened deps of resnet-{}'.format(res_n))
-    num_blocks = resnet_n_to_num_blocks[res_n]
+    if num_blocks is None or not isinstance(num_blocks,list):
+        num_blocks = resnet_n_to_num_blocks[res_n]
     #   the idx of the first layer of the stage (not the proj layer)
     start_layer_idx_of_stage = _resnet_bottlenck_first_internal_layer_idx_of_stage(num_blocks)
     d = [deps[0]]

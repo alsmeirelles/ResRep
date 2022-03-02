@@ -466,7 +466,7 @@ def main_exec(config):
         elif not weights_file is None:
             rdeps = extract_deps_from_weights_file(weights_file)
         else:
-            print("No deps availabel")
+            print("No deps available")
             sys.exit(1)
         flops = calculate_resnet_bottleneck_flops(rdeps,model.num_blocks)
         print("Model FLOPS: {}".format(flops))
