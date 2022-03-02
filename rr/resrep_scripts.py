@@ -28,7 +28,7 @@ def calculate_resnet_bottleneck_flops(fd, resnet_n, original_version=False):
         num_blocks = resnet_n
     else:
         num_blocks = resnet_n_to_num_blocks[resnet_n]
-    d = convert_resnet_bottleneck_deps(fd)
+    d = convert_resnet_bottleneck_deps(fd,num_blocks=num_blocks)
     result = []
     # conv1
     result.append(get_con_flops(3, d[0], 112, 112, kernel_size=7))
