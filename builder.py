@@ -24,8 +24,11 @@ class ConvBuilder(nn.Module):
 
     def Conv2d(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros', use_original_conv=False):
         self.cur_conv_idx += 1
-        return nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
+        conv_layer = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
                          stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias, padding_mode=padding_mode)
+        nn.init.kaiming_uniform_(conv_layer.weight, mode='fan_in', nonlinearity='relu')
+        
+        return conv_layer
 
     # The running estimates are kept with a default momentum of 0.1.
     # By default, the elements of \gammaγ are sampled from \mathcal{U}(0, 1)U(0,1) and the elements of \betaβ are set to 0.
@@ -51,6 +54,7 @@ class ConvBuilder(nn.Module):
         conv_layer = self.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
                          stride=stride, padding=padding, dilation=dilation, groups=groups,
                                  bias=bias, padding_mode=padding_mode, use_original_conv=use_original_conv)
+        
         bn_layer = self.BatchNorm2d(num_features=out_channels)
         se = self.Sequential()
         se.add_module('conv', conv_layer)

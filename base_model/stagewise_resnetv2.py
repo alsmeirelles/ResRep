@@ -24,7 +24,7 @@ class BottleneckBranch(nn.Module):
         self.conv1 = builder.Conv2dBNReLU(in_channels, deps[0], kernel_size=1,stride=1)
         self.conv2 = builder.Conv2dBNReLU(deps[0], deps[1], kernel_size=3, stride=stride, padding=1)
         self.conv3 = builder.Conv2dBN(deps[1], deps[2], kernel_size=1,stride=1)
-
+        
     def forward(self, x):
         out = self.conv1(x)
         out = self.conv2(out)
@@ -143,3 +143,7 @@ def swresnet50v2_phi2(cfg, builder, num_classes = 1000,pretrained=None):
     deps = [53,212,53,53,212,53,53,212,424,106,106,424,106,106,424,106,106,424, 848,
                                     212, 212, 848,212,212,848,212, 212, 848, 212, 212, 848, 1692, 423, 423, 1692,423, 423, 1692]
     return SBottleneckResNet(builder, [2,3,4,2], num_classes=num_classes, deps=deps)
+
+def swresnet50v2_phi3(cfg, builder, num_classes = 1000,pretrained=None):
+    deps = [48,192,48,48,192,48,48,192,384,96,96,384,96,96,384, 768, 192, 192, 768,192,192,768,192, 192, 768, 1540, 385, 385, 1540,385, 385, 1540]
+    return SBottleneckResNet(builder, [2,2,3,2], num_classes=num_classes, deps=deps)
