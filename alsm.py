@@ -427,19 +427,19 @@ def main_exec(config):
             print("Building new model")
             cfg = get_baseconfig_for_test(network_type=config.network, dataset_subset='test', global_batch_size=config.batch_size,
                                               init_weights=weights_file, deps=None, dataset_name='TILDataset')            
-            if os.path.isfile(weights_file):
-                rescfg = ResRepConfig(target_layers=constants.RESNET50_INTERNAL_KERNEL_IDXES, succeeding_strategy=constants.resnet_bottleneck_succeeding_strategy(50),
-                                        pacesetter_dict=constants.resnet_bottleneck_follow_dict(50), lasso_strength=1e-4,
-                                        flops_func=None, flops_target=0.455, mask_interval=200,
-                                        compactor_momentum=0.99, before_mask_iters=5*1281167//config.batch_size,
-                                        begin_granularity=4, weight_decay_on_compactor=False, num_at_least=1)
+            if not os.path.isfile(weights_file):
+            #    rescfg = ResRepConfig(target_layers=constants.RESNET50_INTERNAL_KERNEL_IDXES, succeeding_strategy=constants.resnet_bottleneck_succeeding_strategy(50),
+            #                            pacesetter_dict=constants.resnet_bottleneck_follow_dict(50), lasso_strength=1e-4,
+            #                            flops_func=None, flops_target=0.455, mask_interval=200,
+            #                            compactor_momentum=0.99, before_mask_iters=5*1281167//config.batch_size,
+            #                            begin_granularity=4, weight_decay_on_compactor=False, num_at_least=1)
 
             
-                convbuilder = ResRepBuilder(base_config=cfg, resrep_config=rescfg)
+             #   convbuilder = ResRepBuilder(base_config=cfg, resrep_config=rescfg)
             
-            else:
+            #else:
                 weights_file = os.path.join(config.weights_path,'finish.hdf5')
-                convbuilder = ConvBuilder(base_config=cfg)
+            convbuilder = ConvBuilder(base_config=cfg)
                 
             if not os.path.isfile(weights_file):
                 print("No model available and no weights found: {}".format(weights_file))
@@ -456,7 +456,9 @@ def main_exec(config):
             test_engine.register_state(scheduler=None, model=model, optimizer=None)
             test_engine.load_hdf5(weights_file)
             criterion = torch.nn.CrossEntropyLoss()
-            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            if device == 'cuda':
+                model.cuda()
             
         alu.evaluate(model, criterion, data_loader_test, device=device,calc_auc=True)
         #TODO: calculate FLOPS
