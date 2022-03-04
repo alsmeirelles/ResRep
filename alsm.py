@@ -411,6 +411,7 @@ def main_exec(config):
         train_conf = (optimizer,lr_scheduler,criterion)
         run_rr(other_args,train_dataloader=data_loader,test_dataloader=data_loader_test,train_cfg=train_conf)
         config.predict = True
+        model = None
 
     if config.predict:
         from base_config import get_baseconfig_for_test
@@ -422,6 +423,7 @@ def main_exec(config):
         import constants
         
         weights_file = os.path.join(config.weights_path,'finish_converted.hdf5')
+        rdeps = None
         #Load model if one was not just trained
         if model is None:
             print("Building new model")
@@ -433,9 +435,9 @@ def main_exec(config):
                 print("No model available and no weights found: {}".format(weights_file))
                 sys.exit(1)
 
-            deps = extract_deps_from_weights_file(weights_file)
+            rdeps = extract_deps_from_weights_file(weights_file)
             cfg = get_baseconfig_for_test(network_type=config.network, dataset_subset='test', global_batch_size=config.batch_size,
-                                              init_weights=weights_file, deps=deps, dataset_name='TILDataset')
+                                              init_weights=weights_file, deps=rdeps, dataset_name='TILDataset')
             
             convbuilder = ConvBuilder(base_config=cfg)                
             
@@ -455,9 +457,10 @@ def main_exec(config):
             
         alu.evaluate(model, criterion, data_loader_test, device=device,calc_auc=True)
         #TODO: calculate FLOPS
-        if not weights_file is None and os.path.isfile(weights_file):
+        if rdeps is None and not weights_file is None and os.path.isfile(weights_file):
             rdeps = extract_deps_from_weights_file(weights_file)
-        elif hasattr(model,'deps'):
+
+        if rdeps is None and hasattr(model,'deps'):
             rdeps = model.deps
         else:
             print("No deps available")
