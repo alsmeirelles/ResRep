@@ -264,6 +264,7 @@ def main_exec(config):
     elif not config.tsize is None:
         # split the dataset in train and test set
         indices = torch.randperm(len(dataset)).tolist()
+        #indices = list(range(len(dataset)))
         dataset_test = dataset.get_subset(indices[-config.tsize:],replace=True)
         dataset_test._augmenter = None
 
@@ -467,6 +468,23 @@ def main_exec(config):
             sys.exit(1)
         flops = calculate_resnet_bottleneck_flops(rdeps,model.num_blocks)
         print("Model FLOPS: {}".format(flops))
+
+    if config.flops:
+        weights_file = os.path.join(config.weights_path,'finish_converted.hdf5')
+        if rdeps is None and not weights_file is None and os.path.isfile(weights_file):
+            rdeps = extract_deps_from_weights_file(weights_file)
+
+        if rdeps is None:
+            weights_file = os.path.join(config.weights_path,'finish.hdf5')
+            rdeps = extract_deps_from_weights_file(weights_file)
+            
+        if rdeps is None and not models is None and hasattr(model,'deps'):
+            rdeps = model.deps
+        else:
+            print("No deps available")
+            sys.exit(1)
+        flops = calculate_resnet_bottleneck_flops(rdeps,config.nblocks)
+        print("Model FLOPS: {}".format(flops))
         
 if __name__ == "__main__":
 
@@ -501,6 +519,9 @@ if __name__ == "__main__":
     train_args.add_argument('-tdim', dest='tdim', nargs='+', type=int, 
         help='Tile width and heigth, optionally inform the number of channels (Use: 200 200 for SVS 50 um).', 
         default=None, metavar=('Width', 'Height'))
+    train_args.add_argument('-nblocks', dest='nblocks', nargs='+', type=int, 
+        help='NUmber of blocks in each ResNet stage.', 
+        default=[3,4,6,3])
     train_args.add_argument('-k', action='store_true', dest='keepimg', default=False, 
         help='Keep loaded images in memory.')
 
