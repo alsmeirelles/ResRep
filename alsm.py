@@ -462,7 +462,7 @@ def main_exec(config):
 
         if rdeps is None and hasattr(model,'deps'):
             rdeps = model.deps
-        else:
+        if rdeps is None:
             print("No deps available")
             sys.exit(1)
         flops = calculate_resnet_bottleneck_flops(rdeps,model.num_blocks)
