@@ -280,7 +280,8 @@ def main_exec(config):
     criterion = None
     lr_scheduler = None
     optimizer = None
-    
+    rdeps = None
+
     ## Main execution sequence
     if config.rrtrain:
         from ndp_train import train_main
@@ -470,6 +471,9 @@ def main_exec(config):
         print("Model FLOPS: {}".format(flops))
 
     if config.flops:
+        from utils.misc import extract_deps_from_weights_file
+        from rr.resrep_scripts import calculate_resnet_bottleneck_flops
+
         weights_file = os.path.join(config.weights_path,'finish_converted.hdf5')
         if rdeps is None and not weights_file is None and os.path.isfile(weights_file):
             rdeps = extract_deps_from_weights_file(weights_file)
@@ -478,9 +482,9 @@ def main_exec(config):
             weights_file = os.path.join(config.weights_path,'finish.hdf5')
             rdeps = extract_deps_from_weights_file(weights_file)
             
-        if rdeps is None and not models is None and hasattr(model,'deps'):
+        if rdeps is None and not model is None and hasattr(model,'deps'):
             rdeps = model.deps
-        else:
+        if rdeps is None:
             print("No deps available")
             sys.exit(1)
         flops = calculate_resnet_bottleneck_flops(rdeps,config.nblocks)
@@ -535,7 +539,11 @@ if __name__ == "__main__":
         help='Size of test set', default=None)
     pred_args.add_argument('-eval', dest='eval_freq', type=int, 
         help='Run evaluation on test set every -eval epochs (Default: 5).', default=5)
-    
+
+    #FLOPS only
+    parser.add_argument('--flops', action='store_true', dest='flops', default=False,
+        help='Train model')
+
     ##Hardware configurations
     hd_args = parser.add_argument_group('Hardware')
     arg_groups.append(hd_args)

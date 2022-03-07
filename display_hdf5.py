@@ -1,8 +1,11 @@
 from utils.misc import read_hdf5
+from utils.misc import extract_deps_from_weights_file
 import sys
 import numpy as np
 
-di = read_hdf5(sys.argv[1])
+wf = sys.argv[1]
+deps = extract_deps_from_weights_file(wf)
+di = read_hdf5(wf)
 num_kernel_params = 0
 
 conv_kernel_cnt = 0
@@ -50,3 +53,5 @@ print('number of kernel params: ', num_kernel_params)
 print('vec {}, matrix {}, conv {}, total {}'.format(vec_param_cnt, matrix_param_cnt, conv_kernel_cnt,
                                                     vec_param_cnt + matrix_param_cnt + conv_kernel_cnt))
 print('mu {}, var {}, gamma {}, beta {}, bias {}'.format(mu_cnt, var_cnt, gamma_cnt, beta_cnt, bias_cnt))
+
+print('Model deps: {}'.format(deps))
