@@ -113,6 +113,7 @@ class SBottleneckResNet(nn.Module):
                                             stride=2)
         self.gap = builder.GAP(kernel_size=7)
         self.fc = builder.Linear(deps[-1], num_classes)
+        #self.smax = nn.Softmax(dim=-1)
         self.num_classes = num_classes
 
 
@@ -127,6 +128,7 @@ class SBottleneckResNet(nn.Module):
         out = self.stage4(out)
         out = self.gap(out)
         out = self.fc(out)
+        #out = self.smax(out)
         return out
 
 
@@ -138,6 +140,11 @@ def swresnet101v2(cfg, builder, num_classes = 1000,pretrained=None):
 
 def swresnet152v2(cfg, builder, num_classes = 1000,pretrained=None):
     return SBottleneckResNet(builder, [3,8,36,3], num_classes=num_classes, deps=cfg.deps)
+
+def swresnet50v2_phi1(cfg, builder, num_classes = 1000,pretrained=None):
+    deps = [58,232,58,58,232,58,58,232,464,116,116,464,116,116,464,116,116,464, 932,
+                                    233, 233, 932,233,233,932,233, 233, 932, 233, 233, 932, 233, 233, 932,1860, 465, 465, 1860,465, 465, 1860]
+    return SBottleneckResNet(builder, [2,3,5,2], num_classes=num_classes, deps=deps)
 
 def swresnet50v2_phi2(cfg, builder, num_classes = 1000,pretrained=None):
     deps = [53,212,53,53,212,53,53,212,424,106,106,424,106,106,424,106,106,424, 848,

@@ -270,6 +270,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
 
                 Y_pred[count] = output.cpu().numpy()
                 expected[count][target.item()] ^= 1
+
                 count += 1
 
             if output.shape[1] > 5:

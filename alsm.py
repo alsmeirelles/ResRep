@@ -535,6 +535,10 @@ if __name__ == "__main__":
         help='Size of test set', default=None)
     pred_args.add_argument('-eval', dest='eval_freq', type=int, 
         help='Run evaluation on test set every -eval epochs (Default: 5).', default=5)
+
+    #FLOPS only
+    parser.add_argument('--flops', action='store_true', dest='flops', default=False, 
+        help='Train model')    
     
     ##Hardware configurations
     hd_args = parser.add_argument_group('Hardware')
