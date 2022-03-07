@@ -30,40 +30,40 @@ def calculate_resnet_bottleneck_flops(fd, resnet_n, original_version=False):
         num_blocks = resnet_n_to_num_blocks[resnet_n]
     d = convert_resnet_bottleneck_deps(fd,num_blocks=num_blocks)
     result = []
-    # conv1
-    result.append(get_con_flops(3, d[0], 112, 112, kernel_size=7))
+    # conv1 - 224x224 image input, use 112 below
+    result.append(get_con_flops(3, d[0], 120, 120, kernel_size=7))
     last_dep = d[0]
-    # stage 2
-    result.append(get_con_flops(last_dep, d[1][0][2], 56, kernel_size=1))
+    # stage 2 - 224x224 image input, use 56 below
+    result.append(get_con_flops(last_dep, d[1][0][2], 60, kernel_size=1))
     for i in range(num_blocks[0]):
-        result.append(get_con_flops(last_dep, d[1][i][0], 56, kernel_size=1))
-        result.append(get_con_flops(d[1][i][0], d[1][i][1], 56, kernel_size=3))
-        result.append(get_con_flops(d[1][i][1], d[1][i][2], 56, kernel_size=1))
+        result.append(get_con_flops(last_dep, d[1][i][0], 60, kernel_size=1))
+        result.append(get_con_flops(d[1][i][0], d[1][i][1], 60, kernel_size=3))
+        result.append(get_con_flops(d[1][i][1], d[1][i][2], 60, kernel_size=1))
         last_dep = d[1][i][2]
-    # stage 3
-    result.append(get_con_flops(last_dep, d[2][0][2], 28, kernel_size=1))
+    # stage 3 - 224x224 image input, use 28 below
+    result.append(get_con_flops(last_dep, d[2][0][2], 60, kernel_size=1))
     for i in range(num_blocks[1]):
-        result.append(get_con_flops(last_dep, d[2][i][0], 28 if original_version or i > 0 else 56, kernel_size=1))
-        result.append(get_con_flops(d[2][i][0], d[2][i][1], 28, kernel_size=3))
-        result.append(get_con_flops(d[2][i][1], d[2][i][2], 28, kernel_size=1))
+        result.append(get_con_flops(last_dep, d[2][i][0], 28 if original_version or i > 0 else 60, kernel_size=1))
+        result.append(get_con_flops(d[2][i][0], d[2][i][1], 30, kernel_size=3))
+        result.append(get_con_flops(d[2][i][1], d[2][i][2], 30, kernel_size=1))
         last_dep = d[2][i][2]
-    # stage 4
-    result.append(get_con_flops(last_dep, d[3][0][2], 14, kernel_size=1))
+    # stage 4 - 224x224 image input, use 14 below
+    result.append(get_con_flops(last_dep, d[3][0][2], 30, kernel_size=1))
     for i in range(num_blocks[2]):
-        result.append(get_con_flops(last_dep, d[3][i][0], 14 if original_version or i > 0 else 28, kernel_size=1))
-        result.append(get_con_flops(d[3][i][0], d[3][i][1], 14, kernel_size=3))
-        result.append(get_con_flops(d[3][i][1], d[3][i][2], 14, kernel_size=1))
+        result.append(get_con_flops(last_dep, d[3][i][0], 14 if original_version or i > 0 else 30, kernel_size=1))
+        result.append(get_con_flops(d[3][i][0], d[3][i][1], 15, kernel_size=3))
+        result.append(get_con_flops(d[3][i][1], d[3][i][2], 15, kernel_size=1))
         last_dep = d[3][i][2]
-    # stage 5
-    result.append(get_con_flops(last_dep, d[4][0][2], 7, kernel_size=1))
+    # stage 5 - 224x224 image input, use 7 below
+    result.append(get_con_flops(last_dep, d[4][0][2], 15, kernel_size=1))
     for i in range(num_blocks[3]):
-        result.append(get_con_flops(last_dep, d[4][i][0], 7 if original_version or i > 0 else 14, kernel_size=1))
-        result.append(get_con_flops(d[4][i][0], d[4][i][1], 7, kernel_size=3))
-        result.append(get_con_flops(d[4][i][1], d[4][i][2], 7, kernel_size=1))
+        result.append(get_con_flops(last_dep, d[4][i][0], 7 if original_version or i > 0 else 15, kernel_size=1))
+        result.append(get_con_flops(d[4][i][0], d[4][i][1], 8, kernel_size=3))
+        result.append(get_con_flops(d[4][i][1], d[4][i][2], 8, kernel_size=1))
         last_dep = d[4][i][2]
 
-    # fc
-    result.append(1000 * last_dep)
+    # fc - binary classification
+    result.append(2 * last_dep)
     return np.sum(np.array(result, dtype=np.float32))
 
 #   fd : flattened deps

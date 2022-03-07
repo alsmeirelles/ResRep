@@ -541,9 +541,9 @@ if __name__ == "__main__":
         help='Run evaluation on test set every -eval epochs (Default: 5).', default=5)
 
     #FLOPS only
-    parser.add_argument('--flops', action='store_true', dest='flops', default=False,
-        help='Train model')
-
+    parser.add_argument('--flops', action='store_true', dest='flops', default=False, 
+        help='Train model')    
+    
     ##Hardware configurations
     hd_args = parser.add_argument_group('Hardware')
     arg_groups.append(hd_args)
