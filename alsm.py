@@ -524,7 +524,7 @@ if __name__ == "__main__":
         help='Tile width and heigth, optionally inform the number of channels (Use: 200 200 for SVS 50 um).', 
         default=None, metavar=('Width', 'Height'))
     train_args.add_argument('-nblocks', dest='nblocks', nargs='+', type=int, 
-        help='NUmber of blocks in each ResNet stage.', 
+        help='Number of blocks in each ResNet stage.', 
         default=[3,4,6,3])
     train_args.add_argument('-k', action='store_true', dest='keepimg', default=False, 
         help='Keep loaded images in memory.')
