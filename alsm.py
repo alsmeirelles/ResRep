@@ -481,7 +481,10 @@ def main_exec(config):
         if rdeps is None:
             weights_file = os.path.join(config.weights_path,'finish.hdf5')
             rdeps = extract_deps_from_weights_file(weights_file)
-            
+            if config.network == 'swresnet50v2':
+                rdeps = [64,256,64,64,256,64,64,256,64,64,256,512,128,128,512,128,128,512,128,128,512,128,128,512,
+                                  1024,256, 256, 1024,256, 256, 1024,256, 256, 1024,256, 256, 1024,256, 256, 1024,256, 256, 1024,
+                                  2048,512, 512, 2048,512, 512, 2048,512, 512, 2048]    
         if rdeps is None and not model is None and hasattr(model,'deps'):
             rdeps = model.deps
         if rdeps is None:
