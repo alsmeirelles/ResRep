@@ -43,21 +43,21 @@ def calculate_resnet_bottleneck_flops(fd, resnet_n, original_version=False):
     # stage 3 - 224x224 image input, use 28 below
     result.append(get_con_flops(last_dep, d[2][0][2], 60, kernel_size=1))
     for i in range(num_blocks[1]):
-        result.append(get_con_flops(last_dep, d[2][i][0], 28 if original_version or i > 0 else 60, kernel_size=1))
+        result.append(get_con_flops(last_dep, d[2][i][0], 30 if original_version or i > 0 else 60, kernel_size=1))
         result.append(get_con_flops(d[2][i][0], d[2][i][1], 30, kernel_size=3))
         result.append(get_con_flops(d[2][i][1], d[2][i][2], 30, kernel_size=1))
         last_dep = d[2][i][2]
     # stage 4 - 224x224 image input, use 14 below
     result.append(get_con_flops(last_dep, d[3][0][2], 30, kernel_size=1))
     for i in range(num_blocks[2]):
-        result.append(get_con_flops(last_dep, d[3][i][0], 14 if original_version or i > 0 else 30, kernel_size=1))
+        result.append(get_con_flops(last_dep, d[3][i][0], 15 if original_version or i > 0 else 30, kernel_size=1))
         result.append(get_con_flops(d[3][i][0], d[3][i][1], 15, kernel_size=3))
         result.append(get_con_flops(d[3][i][1], d[3][i][2], 15, kernel_size=1))
         last_dep = d[3][i][2]
     # stage 5 - 224x224 image input, use 7 below
     result.append(get_con_flops(last_dep, d[4][0][2], 15, kernel_size=1))
     for i in range(num_blocks[3]):
-        result.append(get_con_flops(last_dep, d[4][i][0], 7 if original_version or i > 0 else 15, kernel_size=1))
+        result.append(get_con_flops(last_dep, d[4][i][0], 8 if original_version or i > 0 else 15, kernel_size=1))
         result.append(get_con_flops(d[4][i][0], d[4][i][1], 8, kernel_size=3))
         result.append(get_con_flops(d[4][i][1], d[4][i][2], 8, kernel_size=1))
         last_dep = d[4][i][2]

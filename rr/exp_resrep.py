@@ -35,7 +35,7 @@ def run_rr(cfg,train_dataloader=None,val_dataloader=None,test_dataloader=None,tr
         resrep_config = ResRepConfig(target_layers=target_layers, succeeding_strategy=succeeding_strategy,
                                      pacesetter_dict=pacesetter_dict, lasso_strength=1e-4,
                                      flops_func=flops_func, flops_target=0.455, mask_interval=200,
-                                     compactor_momentum=0.99, before_mask_iters=5*1281167//batch_size,
+                                     compactor_momentum=0.99, before_mask_iters=5*4300//batch_size,
                                      begin_granularity=4, weight_decay_on_compactor=False, num_at_least=1)
 
     elif network_type == 'src56':

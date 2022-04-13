@@ -23,7 +23,7 @@ COLLECT_TRAIN_LOSS_EPOCHS = 3
 
 TEST_BATCH_SIZE = 100
 
-CONVERSION_EPSILON = 0.84
+CONVERSION_EPSILON = 1e-4
 
 def train_one_step(compactor_mask_dict, resrep_config:ResRepConfig,
                    net, data, label, optimizer, criterion, if_accum_grad = False,
