@@ -133,6 +133,9 @@ class ConvBuilder(nn.Module):
         gap.add_module('flatten', self.Flatten())
         return gap
 
+    def AGAP(self, kernel_size=(1,1)):
+        return nn.AdaptiveAvgPool2d(kernel_size)
+
     def relu(self, in_features):
         return F.relu(in_features)
 

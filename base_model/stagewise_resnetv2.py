@@ -111,7 +111,8 @@ class SBottleneckResNet(nn.Module):
         self.stage4 = ResNetBottleneckStage(builder=builder, in_planes=deps[nls[0] + nls[1] + nls[2]],
                                             stage_deps=deps[nls[0] + nls[1] + nls[2] + 1: nls[0] + 1 + nls[1] + nls[2] + nls[3]],
                                             stride=2)
-        self.gap = builder.GAP(kernel_size=7)
+        self.gap = builder.AGAP()
+        self.flatten = builder.Flatten()
         self.fc = builder.Linear(deps[-1], num_classes)
         #self.smax = nn.Softmax(dim=-1)
         self.num_classes = num_classes
@@ -127,6 +128,7 @@ class SBottleneckResNet(nn.Module):
         out = self.stage3(out)
         out = self.stage4(out)
         out = self.gap(out)
+        out = self.flatten(out)
         out = self.fc(out)
         #out = self.smax(out)
         return out
